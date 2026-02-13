@@ -1,7 +1,15 @@
 import { useEffect, useCallback } from 'react';
 import type { Photo, MarkerColor } from '../../types';
-import { MARKER_COLORS } from '../../types';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+
+// Marker Labels
+const MARKER_LABELS: Record<MarkerColor, string> = {
+  none: '',
+  green: 'Ja',
+  yellow: 'Vielleicht',
+  red: 'Nein',
+  blue: 'Favorit',
+};
 
 interface LightboxProps {
   photo: Photo;
@@ -69,6 +77,16 @@ export function Lightbox({
     };
   }, [onClose, goToPrev, goToNext]);
 
+  function getMarkerColor(color: MarkerColor): string {
+    switch (color) {
+      case 'green': return 'text-emerald-500';
+      case 'yellow': return 'text-amber-400';
+      case 'red': return 'text-rose-500';
+      case 'blue': return 'text-sky-500';
+      default: return 'text-white/50';
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
       {/* Header */}
@@ -130,13 +148,11 @@ export function Lightbox({
         )}
       </div>
 
-      {/* Footer with markers */}
+      {/* Footer with bookmark markers */}
       {allowMarking && availableMarkers.length > 0 && (
         <div className="p-4 flex justify-center">
-          <div className="flex items-center gap-3 bg-white/10 rounded-full px-4 py-2">
-            <span className="text-white/70 text-sm mr-2">Markieren:</span>
+          <div className="flex items-center gap-1 bg-white/10 rounded-xl p-2">
             {availableMarkers.map((color) => {
-              const config = MARKER_COLORS[color];
               const isActive = visitorMarker === color;
               
               return (
@@ -144,21 +160,43 @@ export function Lightbox({
                   key={color}
                   onClick={() => onToggleMarker(photo.id, color)}
                   className={`
-                    w-8 h-8 rounded-full border-2 transition-all
-                    ${config.bgClass} ${config.borderClass}
-                    ${isActive ? 'scale-110 ring-2 ring-white' : 'hover:scale-110'}
+                    flex items-center gap-2 px-4 py-2 rounded-lg transition-all
+                    ${isActive 
+                      ? 'bg-white/20' 
+                      : 'hover:bg-white/10'
+                    }
                   `}
-                  title={config.label}
-                />
+                  title={MARKER_LABELS[color]}
+                >
+                  {/* Bookmark SVG */}
+                  <svg 
+                    width="18" 
+                    height="24" 
+                    viewBox="0 0 18 24" 
+                    className={getMarkerColor(color)}
+                  >
+                    <path 
+                      d="M0 0 H18 V22 L9 17 L0 22 Z" 
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <span className={`text-sm ${isActive ? 'text-white' : 'text-white/70'}`}>
+                    {MARKER_LABELS[color]}
+                  </span>
+                </button>
               );
             })}
+            
             {visitorMarker !== 'none' && (
-              <button
-                onClick={() => onToggleMarker(photo.id, visitorMarker)}
-                className="ml-2 text-white/70 text-sm hover:text-white"
-              >
-                Entfernen
-              </button>
+              <>
+                <div className="w-px h-6 bg-white/20 mx-2" />
+                <button
+                  onClick={() => onToggleMarker(photo.id, visitorMarker)}
+                  className="px-3 py-2 text-white/50 text-sm hover:text-white/70 transition-colors"
+                >
+                  Entfernen
+                </button>
+              </>
             )}
           </div>
         </div>

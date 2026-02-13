@@ -99,19 +99,6 @@ export function GalleryPage() {
     // TODO: Save to Firebase
   }
 
-  // Toggle photo selection
-  function handleToggleSelect(photoId: string) {
-    setSelectedPhotos(prev => {
-      const next = new Set(prev);
-      if (next.has(photoId)) {
-        next.delete(photoId);
-      } else {
-        next.add(photoId);
-      }
-      return next;
-    });
-  }
-
   // Download photos as ZIP
   async function downloadPhotos(photosToDownload: Photo[]) {
     if (photosToDownload.length === 0) return;
@@ -217,8 +204,6 @@ export function GalleryPage() {
           visitorId={visitor?.id || ''}
           onPhotoClick={setLightboxPhoto}
           onToggleMarker={handleToggleMarker}
-          onToggleSelect={handleToggleSelect}
-          selectedPhotos={selectedPhotos}
         />
 
         {/* Lightbox */}
