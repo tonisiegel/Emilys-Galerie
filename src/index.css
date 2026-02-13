@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  
+  body {
+    @apply bg-cream-50 text-sage-800 font-sans;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-2.5 bg-sage-600 text-white rounded-lg 
+           hover:bg-sage-700 transition-colors duration-200
+           font-medium shadow-sm hover:shadow-md;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-2.5 bg-sand-200 text-sage-800 rounded-lg 
+           hover:bg-sand-300 transition-colors duration-200
+           font-medium;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-sand-100 
+           overflow-hidden;
+  }
+  
+  .input {
+    @apply w-full px-4 py-2.5 rounded-lg border border-sand-200
+           focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-400
+           bg-white placeholder-sage-400 transition-all duration-200;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-sand-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-sand-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-sand-500;
+}
+
+/* Photo grid animations */
+.photo-item {
+  @apply transition-all duration-300;
+}
+
+.photo-item:hover {
+  @apply scale-[1.02] shadow-lg;
+}
+
+/* Marker colors */
+.marker-green {
+  @apply bg-emerald-400 border-emerald-500;
+}
+
+.marker-yellow {
+  @apply bg-amber-400 border-amber-500;
+}
+
+.marker-red {
+  @apply bg-rose-400 border-rose-500;
+}
+
+.marker-blue {
+  @apply bg-sky-400 border-sky-500;
+}
