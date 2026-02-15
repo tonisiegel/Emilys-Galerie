@@ -8,7 +8,6 @@ import {
   Images,
   Calendar,
   ExternalLink,
-  Settings,
   LogOut,
   Trash2,
   Edit,
@@ -16,14 +15,25 @@ import {
   Check,
   Loader2,
   Flag,
+  Layout,
+  FolderOpen,
+  Globe,
+  User,
+  DollarSign,
+  Instagram,
+  ImageIcon,
+  ChevronRight,
 } from "lucide-react";
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
+type Tab = "website" | "galleries";
+
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<Tab>("galleries");
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
@@ -69,21 +79,70 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     setTimeout(() => setCopiedSlug(null), 2000);
   }
 
+  // Website sections for editing
+  const websiteSections = [
+    {
+      id: "hero",
+      name: "Hero-Bereich",
+      description: "Titelbild, Überschrift und Untertitel",
+      icon: Layout,
+      color: "bg-purple-100 text-purple-600",
+    },
+    {
+      id: "about",
+      name: "Über mich",
+      description: "Profilbild und Text über dich",
+      icon: User,
+      color: "bg-blue-100 text-blue-600",
+    },
+    {
+      id: "portfolio",
+      name: "Portfolio",
+      description: "Beispielbilder mit verschiedenen Größen",
+      icon: ImageIcon,
+      color: "bg-pink-100 text-pink-600",
+    },
+    {
+      id: "prices",
+      name: "Preise",
+      description: "Deine Pakete und Preise",
+      icon: DollarSign,
+      color: "bg-green-100 text-green-600",
+    },
+    {
+      id: "contact",
+      name: "Kontakt",
+      description: "E-Mail und Instagram",
+      icon: Instagram,
+      color: "bg-orange-100 text-orange-600",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-cream-50">
       {/* Header */}
       <header className="bg-white border-b border-sand-100 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sage-600">
-            <Camera className="w-6 h-6" />
-            <span className="font-serif text-xl">Emily's Galerie</span>
-            <span className="text-sm text-sage-400 ml-2">Admin</span>
+            <Camera className="w-5 h-5" />
+            <span className="font-serif text-lg md:text-xl">
+              Emily's Galerie
+            </span>
+            <span className="text-xs md:text-sm text-sage-400 ml-1 md:ml-2 hidden sm:inline">
+              Admin
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg hover:bg-sand-100 text-sage-600 transition-colors">
-              <Settings className="w-5 h-5" />
-            </button>
+          <div className="flex items-center gap-2 md:gap-4">
+            <a
+              href="/"
+              target="_blank"
+              className="text-sm text-sage-500 hover:text-sage-700 flex items-center gap-1"
+              title="Webseite ansehen"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="hidden sm:inline">Webseite ansehen</span>
+            </a>
             <button
               onClick={handleLogout}
               className="p-2 rounded-lg hover:bg-sand-100 text-sage-600 transition-colors"
@@ -95,152 +154,232 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         </div>
       </header>
 
+      {/* Tabs */}
+      <div className="bg-white border-b border-sand-100">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex gap-8">
+            <button
+              onClick={() => setActiveTab("galleries")}
+              className={`py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === "galleries"
+                  ? "border-sage-500 text-sage-700"
+                  : "border-transparent text-sage-400 hover:text-sage-600"
+              }`}
+            >
+              <FolderOpen className="w-4 h-4" />
+              Kunden-Galerien
+            </button>
+            <button
+              onClick={() => setActiveTab("website")}
+              className={`py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === "website"
+                  ? "border-sage-500 text-sage-700"
+                  : "border-transparent text-sage-400 hover:text-sage-600"
+              }`}
+            >
+              <Layout className="w-4 h-4" />
+              Webseite bearbeiten
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Title + Add Button */}
-        <div className="flex items-center justify-between mb-8">
+        {/* Website Tab */}
+        {activeTab === "website" && (
           <div>
-            <h1 className="text-2xl font-serif text-sage-800">
-              Meine Galerien
-            </h1>
-            <p className="text-sage-500 mt-1">
-              {galleries.length}{" "}
-              {galleries.length === 1 ? "Galerie" : "Galerien"}
-            </p>
-          </div>
+            <div className="mb-8">
+              <h1 className="text-2xl font-serif text-sage-800">
+                Webseite bearbeiten
+              </h1>
+              <p className="text-sage-500 mt-1">
+                Passe deine Webseite an - Texte, Bilder und mehr
+              </p>
+            </div>
 
-          <Link
-            to="/admin/gallery/new"
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Neue Galerie
-          </Link>
-        </div>
-
-        {/* Galleries Grid */}
-        {loading ? (
-          <div className="text-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-sage-500 mx-auto" />
-          </div>
-        ) : galleries.length === 0 ? (
-          <div className="card p-12 text-center">
-            <Images className="w-16 h-16 mx-auto text-sage-300 mb-4" />
-            <h2 className="text-xl font-medium text-sage-700 mb-2">
-              Noch keine Galerien
-            </h2>
-            <p className="text-sage-500 mb-6">
-              Erstelle deine erste Galerie und lade Fotos hoch.
-            </p>
-            <Link
-              to="/admin/gallery/new"
-              className="btn-primary inline-flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Erste Galerie erstellen
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {galleries.map((gallery) => (
-              <div
-                key={gallery.id}
-                className="card group relative overflow-visible"
-              >
-                {/* Gallery Preview / Collage */}
-                <div className="aspect-video bg-gradient-to-br from-sand-100 to-sand-200 grid grid-cols-3 gap-0.5 p-0.5">
-                  {/* Großes Bild links (2/3) */}
-                  <div className="col-span-2 row-span-2 bg-sand-200 rounded-l-lg overflow-hidden">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Images className="w-10 h-10 text-sand-400" />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {websiteSections.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <Link
+                    key={section.id}
+                    to={`/admin/website/${section.id}`}
+                    className="card p-5 hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-xl ${section.color}`}>
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sage-800 group-hover:text-sage-600 transition-colors">
+                          {section.name}
+                        </h3>
+                        <p className="text-sm text-sage-500 mt-0.5">
+                          {section.description}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-sage-300 group-hover:text-sage-500 group-hover:translate-x-1 transition-all" />
                     </div>
-                  </div>
-                  {/* Zwei kleine Bilder rechts (1/3) */}
-                  <div className="bg-sand-200 rounded-tr-lg overflow-hidden">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Images className="w-6 h-6 text-sand-400" />
-                    </div>
-                  </div>
-                  <div className="bg-sand-200 rounded-br-lg overflow-hidden">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Images className="w-6 h-6 text-sand-400" />
-                    </div>
-                  </div>
-                </div>
+                  </Link>
+                );
+              })}
+            </div>
 
-                {/* Info */}
-                <div className="p-4">
-                  <h3 className="font-medium text-sage-800 truncate">
-                    {gallery.title}
-                  </h3>
+            {/* Preview hint */}
+            <div className="mt-8 p-4 bg-sand-50 rounded-xl border border-sand-100">
+              <p className="text-sm text-sage-600">
+                💡 <strong>Tipp:</strong> Öffne deine{" "}
+                <a href="/" target="_blank" className="text-sage-700 underline">
+                  Webseite in einem neuen Tab
+                </a>
+                , um Änderungen live zu sehen.
+              </p>
+            </div>
+          </div>
+        )}
 
-                  <div className="flex items-center gap-3 mt-2 text-sm text-sage-500">
-                    <span className="flex items-center gap-1">
-                      <Images className="w-4 h-4" />
-                      {gallery.photoCount}
-                    </span>
-                    <span>{formatSize(gallery.totalSize)}</span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {formatDate(gallery.createdAt)}
-                    </span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 mt-4">
-                    <Link
-                      to={`/admin/gallery/${gallery.id}`}
-                      className="btn-secondary text-sm flex-1 text-center"
-                    >
-                      <Edit className="w-4 h-4 inline mr-1" />
-                      Bearbeiten
-                    </Link>
-
-                    <Link
-                      to={`/admin/gallery/${gallery.id}/markers`}
-                      className="btn-secondary text-sm px-3"
-                      title="Markierungen ansehen"
-                    >
-                      <Flag className="w-4 h-4" />
-                    </Link>
-
-                    <button
-                      onClick={() => copyGalleryLink(gallery.slug)}
-                      className="btn-secondary text-sm px-3"
-                      title="Link kopieren"
-                    >
-                      {copiedSlug === gallery.slug ? (
-                        <Check className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-
-                    <a
-                      href={`/g/${gallery.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-secondary text-sm px-3"
-                      title="Galerie öffnen"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => setDeleteGalleryId(gallery.id)}
-                      className="btn-secondary text-sm px-3 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
-                      title="Löschen"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+        {/* Galleries Tab */}
+        {activeTab === "galleries" && (
+          <div>
+            {/* Title + Add Button */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-2xl font-serif text-sage-800">
+                  Kunden-Galerien
+                </h1>
+                <p className="text-sage-500 mt-1">
+                  {galleries.length}{" "}
+                  {galleries.length === 1 ? "Galerie" : "Galerien"}
+                </p>
               </div>
-            ))}
+
+              <Link
+                to="/admin/gallery/new"
+                className="btn-primary flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Neue Galerie
+              </Link>
+            </div>
+
+            {/* Galleries Grid */}
+            {loading ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-sage-500 mx-auto" />
+              </div>
+            ) : galleries.length === 0 ? (
+              <div className="card p-12 text-center">
+                <Images className="w-16 h-16 mx-auto text-sage-300 mb-4" />
+                <h2 className="text-xl font-medium text-sage-700 mb-2">
+                  Noch keine Galerien
+                </h2>
+                <p className="text-sage-500 mb-6">
+                  Erstelle deine erste Galerie und lade Fotos hoch.
+                </p>
+                <Link
+                  to="/admin/gallery/new"
+                  className="btn-primary inline-flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Erste Galerie erstellen
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {galleries.map((gallery) => (
+                  <div
+                    key={gallery.id}
+                    className="card group relative overflow-visible"
+                  >
+                    {/* Gallery Preview / Collage */}
+                    <div className="aspect-video bg-gradient-to-br from-sand-100 to-sand-200 grid grid-cols-3 gap-0.5 p-0.5 rounded-t-xl overflow-hidden">
+                      <div className="col-span-2 row-span-2 bg-sand-200 flex items-center justify-center">
+                        <Images className="w-10 h-10 text-sand-400" />
+                      </div>
+                      <div className="bg-sand-200 flex items-center justify-center">
+                        <Images className="w-6 h-6 text-sand-400" />
+                      </div>
+                      <div className="bg-sand-200 flex items-center justify-center">
+                        <Images className="w-6 h-6 text-sand-400" />
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-4">
+                      <h3 className="font-medium text-sage-800 truncate">
+                        {gallery.title}
+                      </h3>
+
+                      <div className="flex items-center gap-3 mt-2 text-sm text-sage-500">
+                        <span className="flex items-center gap-1">
+                          <Images className="w-4 h-4" />
+                          {gallery.photoCount}
+                        </span>
+                        <span>{formatSize(gallery.totalSize)}</span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDate(gallery.createdAt)}
+                        </span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 mt-4">
+                        <Link
+                          to={`/admin/gallery/${gallery.id}`}
+                          className="btn-secondary text-sm flex-1 text-center"
+                        >
+                          <Edit className="w-4 h-4 inline mr-1" />
+                          Bearbeiten
+                        </Link>
+
+                        <Link
+                          to={`/admin/gallery/${gallery.id}/markers`}
+                          className="btn-secondary text-sm px-3"
+                          title="Markierungen ansehen"
+                        >
+                          <Flag className="w-4 h-4" />
+                        </Link>
+
+                        <button
+                          onClick={() => copyGalleryLink(gallery.slug)}
+                          className="btn-secondary text-sm px-3"
+                          title="Link kopieren"
+                        >
+                          {copiedSlug === gallery.slug ? (
+                            <Check className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+
+                        <a
+                          href={`/g/${gallery.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary text-sm px-3"
+                          title="Galerie öffnen"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+
+                        <button
+                          onClick={() => setDeleteGalleryId(gallery.id)}
+                          className="btn-secondary text-sm px-3 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
+                          title="Löschen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
+
       {/* Delete Confirmation Modal */}
       {deleteGalleryId && (
         <>
