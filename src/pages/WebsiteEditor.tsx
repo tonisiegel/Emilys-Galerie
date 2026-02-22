@@ -1,7 +1,6 @@
-import { useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ImageCropSelector } from "../components/ImageCropSelector";
-import { useDropzone } from "react-dropzone";
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useDropzone } from 'react-dropzone';
 import {
   DndContext,
   closestCenter,
@@ -9,36 +8,29 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
-import type { DragEndEvent } from "@dnd-kit/core";
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
   useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
-  ArrowLeft,
-  Save,
-  Upload,
-  X,
-  Loader2,
-  Check,
-  Camera,
-  Plus,
-  Trash2,
-  GripVertical,
-  ExternalLink,
-} from "lucide-react";
+  ArrowLeft, Save, Upload, X, Loader2, Check,
+  Camera, Plus, Trash2, GripVertical, ExternalLink
+} from 'lucide-react';
+import { getWebsiteContent, updateWebsiteContent } from '../lib/firestoreService';
+import { uploadPhoto } from '../lib/uploadService';
 
 // Types
 interface PortfolioImage {
   id: string;
   url: string;
   alt: string;
-  size: "S" | "M" | "L";
+  size: 'S' | 'M' | 'L';
 }
 
 interface PricePackage {
@@ -49,22 +41,15 @@ interface PricePackage {
   features: string[];
 }
 
-interface CropArea {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
 // Sortable Portfolio Image
-function SortablePortfolioImage({
-  image,
-  onRemove,
-  onSizeChange,
-}: {
-  image: PortfolioImage;
+function SortablePortfolioImage({ 
+  image, 
+  onRemove, 
+  onSizeChange 
+}: { 
+  image: PortfolioImage; 
   onRemove: (id: string) => void;
-  onSizeChange: (id: string, size: "S" | "M" | "L") => void;
+  onSizeChange: (id: string, size: 'S' | 'M' | 'L') => void;
 }) {
   const {
     attributes,
@@ -81,12 +66,10 @@ function SortablePortfolioImage({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const heightClass =
-    image.size === "L"
-      ? "aspect-[3/4]"
-      : image.size === "M"
-        ? "aspect-square"
-        : "aspect-[4/3]";
+  const heightClass = 
+    image.size === 'L' ? 'aspect-[3/4]' :
+    image.size === 'M' ? 'aspect-square' :
+    'aspect-[4/3]';
 
   return (
     <div
@@ -112,14 +95,14 @@ function SortablePortfolioImage({
 
       {/* Size Selector */}
       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {(["S", "M", "L"] as const).map((size) => (
+        {(['S', 'M', 'L'] as const).map((size) => (
           <button
             key={size}
             onClick={() => onSizeChange(image.id, size)}
             className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
               image.size === size
-                ? "bg-sage-600 text-white"
-                : "bg-white/90 text-sage-700 hover:bg-white"
+                ? 'bg-sage-600 text-white'
+                : 'bg-white/90 text-sage-700 hover:bg-white'
             }`}
           >
             {size}
@@ -142,152 +125,88 @@ function SortablePortfolioImage({
 export function WebsiteEditor() {
   const { section } = useParams<{ section: string }>();
 
-  const [heroTitle, setHeroTitle] = useState("Emily's Fotografie");
-  const [heroSubtitle, setHeroSubtitle] = useState(
-    "Momente festhalten, Erinnerungen schaffen",
-  );
-  const [heroImage, setHeroImage] = useState(
-    "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=1920&q=80",
-  );
-  const [heroDesktopCrop, setHeroDesktopCrop] = useState<CropArea>({
-    x: 0,
-    y: 10,
-    width: 100,
-    height: 50,
-  });
-  const [heroMobileCrop, setHeroMobileCrop] = useState<CropArea>({
-    x: 35,
-    y: 0,
-    width: 30,
-    height: 100,
-  });
+  // Hero state
+  const [heroTitle, setHeroTitle] = useState("");
+  const [heroSubtitle, setHeroSubtitle] = useState("");
+  const [heroImage, setHeroImage] = useState("");
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
 
   // About state
-  const [aboutText, setAboutText] = useState(`Hallo, ich bin Emily! 📸
-
-Seit über 5 Jahren fotografiere ich mit Leidenschaft Menschen und ihre Geschichten. Ob Hochzeit, Portrait oder Familienfeier - ich liebe es, authentische Momente einzufangen.
-
-Mein Stil ist natürlich, warm und persönlich. Ich möchte, dass ihr euch vor meiner Kamera wohlfühlt und einfach ihr selbst sein könnt.
-
-Ich freue mich darauf, euch kennenzulernen!`);
-  const [aboutImage, setAboutImage] = useState(
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&q=80",
-  );
+  const [aboutText, setAboutText] = useState("");
+  const [aboutImage, setAboutImage] = useState("");
+  const [aboutImageFile, setAboutImageFile] = useState<File | null>(null);
 
   // Portfolio state
-  const [portfolioImages, setPortfolioImages] = useState<PortfolioImage[]>([
-    {
-      id: "1",
-      url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=800",
-      alt: "Hochzeit",
-      size: "L",
-    },
-    {
-      id: "2",
-      url: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800",
-      alt: "Portrait",
-      size: "M",
-    },
-    {
-      id: "3",
-      url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800",
-      alt: "Portrait",
-      size: "S",
-    },
-    {
-      id: "4",
-      url: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800",
-      alt: "Fashion",
-      size: "S",
-    },
-    {
-      id: "5",
-      url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800",
-      alt: "Hochzeit",
-      size: "M",
-    },
-    {
-      id: "6",
-      url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=800",
-      alt: "Hochzeit",
-      size: "L",
-    },
-  ]);
+  const [portfolioImages, setPortfolioImages] = useState<PortfolioImage[]>([]);
 
   // Prices state
-  const [prices, setPrices] = useState<PricePackage[]>([
-    {
-      id: "1",
-      name: "Portrait Session",
-      price: "ab 150€",
-      description: "Perfekt für Einzelportraits und Bewerbungsfotos",
-      features: [
-        "1-2 Stunden Shooting",
-        "10 bearbeitete Bilder",
-        "Online-Galerie",
-        "Alle Bilder als Download",
-      ],
-    },
-    {
-      id: "2",
-      name: "Paar & Familie",
-      price: "ab 250€",
-      description: "Für Paare, Familien und kleine Gruppen",
-      features: [
-        "2-3 Stunden Shooting",
-        "20 bearbeitete Bilder",
-        "Online-Galerie",
-        "Alle Bilder als Download",
-        "Location nach Wahl",
-      ],
-    },
-    {
-      id: "3",
-      name: "Hochzeit",
-      price: "ab 1.200€",
-      description: "Euer großer Tag in Bildern",
-      features: [
-        "Ganztägige Begleitung",
-        "200+ bearbeitete Bilder",
-        "Online-Galerie",
-        "Alle Bilder als Download",
-        "Verlobungsshooting inkl.",
-        "Hochzeitsalbum optional",
-      ],
-    },
-  ]);
+  const [prices, setPrices] = useState<PricePackage[]>([]);
 
   // Contact state
-  const [contactEmail, setContactEmail] = useState(
-    "hello@emilys-fotografie.de",
-  );
-  const [contactInstagram, setContactInstagram] = useState(
-    "https://instagram.com/emilys_fotografie",
-  );
-  const [contactInstagramHandle, setContactInstagramHandle] =
-    useState("@emilys_fotografie");
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactInstagram, setContactInstagram] = useState('');
+  const [contactInstagramHandle, setContactInstagramHandle] = useState('');
 
   // UI state
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Load content from Firebase
+  useEffect(() => {
+    async function loadContent() {
+      try {
+        const content = await getWebsiteContent();
+        if (content) {
+          if (content.hero) {
+            setHeroTitle(content.hero.title || "");
+            setHeroSubtitle(content.hero.subtitle || "");
+            setHeroImage(content.hero.backgroundImage || "");
+          }
+          if (content.about) {
+            setAboutText(content.about.text || "");
+            setAboutImage(content.about.image || "");
+          }
+          if (content.portfolio) {
+            setPortfolioImages(content.portfolio);
+          }
+          if (content.prices) {
+            setPrices(content.prices);
+          }
+          if (content.contact) {
+            setContactEmail(content.contact.email || "");
+            setContactInstagram(content.contact.instagram || "");
+            setContactInstagramHandle(content.contact.instagramHandle || "");
+          }
+        }
+      } catch (error) {
+        console.error('Error loading website content:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadContent();
+  }, []);
 
   // DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   // Handle image upload
   const onDropHero = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles[0]) {
+      setHeroImageFile(acceptedFiles[0]);
       setHeroImage(URL.createObjectURL(acceptedFiles[0]));
     }
   }, []);
 
   const onDropAbout = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles[0]) {
+      setAboutImageFile(acceptedFiles[0]);
       setAboutImage(URL.createObjectURL(acceptedFiles[0]));
     }
   }, []);
@@ -297,128 +216,164 @@ Ich freue mich darauf, euch kennenzulernen!`);
       id: `new-${Date.now()}-${idx}`,
       url: URL.createObjectURL(file),
       alt: file.name,
-      size: "M" as const,
+      size: 'M' as const,
+      _file: file // Track file for upload
     }));
-    setPortfolioImages((prev) => [...prev, ...newImages]);
+    setPortfolioImages(prev => [...prev, ...newImages as PortfolioImage[]]);
   }, []);
 
-  const heroDropzone = useDropzone({
-    onDrop: onDropHero,
-    accept: { "image/*": [] },
-    multiple: false,
-  });
-  const aboutDropzone = useDropzone({
-    onDrop: onDropAbout,
-    accept: { "image/*": [] },
-    multiple: false,
-  });
-  const portfolioDropzone = useDropzone({
-    onDrop: onDropPortfolio,
-    accept: { "image/*": [] },
-    multiple: true,
-  });
+  const heroDropzone = useDropzone({ onDrop: onDropHero, accept: { 'image/*': [] }, multiple: false });
+  const aboutDropzone = useDropzone({ onDrop: onDropAbout, accept: { 'image/*': [] }, multiple: false });
+  const portfolioDropzone = useDropzone({ onDrop: onDropPortfolio, accept: { 'image/*': [] }, multiple: true });
 
   // Portfolio handlers
   function handlePortfolioDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setPortfolioImages((items) => {
-        const oldIndex = items.findIndex((i) => i.id === active.id);
-        const newIndex = items.findIndex((i) => i.id === over.id);
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
         return arrayMove(items, oldIndex, newIndex);
       });
     }
   }
 
   function removePortfolioImage(id: string) {
-    setPortfolioImages((prev) => prev.filter((img) => img.id !== id));
+    setPortfolioImages(prev => prev.filter(img => img.id !== id));
   }
 
-  function changeImageSize(id: string, size: "S" | "M" | "L") {
-    setPortfolioImages((prev) =>
-      prev.map((img) => (img.id === id ? { ...img, size } : img)),
-    );
+  function changeImageSize(id: string, size: 'S' | 'M' | 'L') {
+    setPortfolioImages(prev => prev.map(img => 
+      img.id === id ? { ...img, size } : img
+    ));
   }
 
   // Price handlers
-  function updatePrice(
-    id: string,
-    field: keyof PricePackage,
-    value: string | string[],
-  ) {
-    setPrices((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
-    );
+  function updatePrice(id: string, field: keyof PricePackage, value: string | string[]) {
+    setPrices(prev => prev.map(p => 
+      p.id === id ? { ...p, [field]: value } : p
+    ));
   }
 
   function addFeature(priceId: string) {
-    setPrices((prev) =>
-      prev.map((p) =>
-        p.id === priceId ? { ...p, features: [...p.features, ""] } : p,
-      ),
-    );
+    setPrices(prev => prev.map(p => 
+      p.id === priceId ? { ...p, features: [...p.features, ''] } : p
+    ));
   }
 
   function updateFeature(priceId: string, featureIndex: number, value: string) {
-    setPrices((prev) =>
-      prev.map((p) =>
-        p.id === priceId
-          ? {
-              ...p,
-              features: p.features.map((f, i) =>
-                i === featureIndex ? value : f,
-              ),
-            }
-          : p,
-      ),
-    );
+    setPrices(prev => prev.map(p => 
+      p.id === priceId 
+        ? { ...p, features: p.features.map((f, i) => i === featureIndex ? value : f) } 
+        : p
+    ));
   }
 
   function removeFeature(priceId: string, featureIndex: number) {
-    setPrices((prev) =>
-      prev.map((p) =>
-        p.id === priceId
-          ? { ...p, features: p.features.filter((_, i) => i !== featureIndex) }
-          : p,
-      ),
-    );
-  }
-
-  function addPricePackage() {
-    setPrices((prev) => [
-      ...prev,
-      {
-        id: `new-${Date.now()}`,
-        name: "Neues Paket",
-        price: "ab X€",
-        description: "Beschreibung",
-        features: ["Leistung 1"],
-      },
-    ]);
-  }
-
-  function removePricePackage(id: string) {
-    setPrices((prev) => prev.filter((p) => p.id !== id));
+    setPrices(prev => prev.map(p => 
+      p.id === priceId 
+        ? { ...p, features: p.features.filter((_, i) => i !== featureIndex) } 
+        : p
+    ));
   }
 
   // Save handler
   async function handleSave() {
     setSaving(true);
-    // TODO: Save to Firebase
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    
+    try {
+      // Upload hero image if changed
+      let finalHeroImage = heroImage;
+      if (heroImageFile) {
+        const result = await uploadPhoto(heroImageFile, 'website');
+        finalHeroImage = result.url;
+        setHeroImageFile(null);
+      }
+
+      // Upload about image if changed
+      let finalAboutImage = aboutImage;
+      if (aboutImageFile) {
+        const result = await uploadPhoto(aboutImageFile, 'website');
+        finalAboutImage = result.url;
+        setAboutImageFile(null);
+      }
+
+      // Upload new portfolio images
+      const updatedPortfolio: PortfolioImage[] = [];
+      for (const img of portfolioImages) {
+        const imgWithFile = img as PortfolioImage & { _file?: File };
+        if (imgWithFile._file) {
+          const result = await uploadPhoto(imgWithFile._file, 'website');
+          updatedPortfolio.push({
+            id: result.filename,
+            url: result.url,
+            alt: img.alt,
+            size: img.size
+          });
+        } else {
+          updatedPortfolio.push(img);
+        }
+      }
+      setPortfolioImages(updatedPortfolio);
+
+      // Save to Firebase based on current section
+      if (section === 'hero' || !section) {
+        await updateWebsiteContent('hero', {
+          title: heroTitle,
+          subtitle: heroSubtitle,
+          backgroundImage: finalHeroImage
+        });
+      }
+      
+      if (section === 'about' || !section) {
+        await updateWebsiteContent('about', {
+          text: aboutText,
+          image: finalAboutImage
+        });
+      }
+      
+      if (section === 'portfolio' || !section) {
+        await updateWebsiteContent('portfolio', updatedPortfolio);
+      }
+      
+      if (section === 'prices' || !section) {
+        await updateWebsiteContent('prices', prices);
+      }
+      
+      if (section === 'contact' || !section) {
+        await updateWebsiteContent('contact', {
+          email: contactEmail,
+          instagram: contactInstagram,
+          instagramHandle: contactInstagramHandle
+        });
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('Fehler beim Speichern. Bitte versuche es erneut.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   // Section titles
   const sectionTitles: Record<string, string> = {
-    hero: "Hero-Bereich",
-    about: "Über mich",
-    portfolio: "Portfolio",
-    prices: "Preise",
-    contact: "Kontakt",
+    hero: 'Hero-Bereich',
+    about: 'Über mich',
+    portfolio: 'Portfolio',
+    prices: 'Preise',
+    contact: 'Kontakt'
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-cream-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-sage-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-cream-50">
@@ -434,9 +389,7 @@ Ich freue mich darauf, euch kennenzulernen!`);
             </Link>
             <div className="flex items-center gap-2 text-sage-600">
               <Camera className="w-5 h-5" />
-              <span className="font-medium">
-                {sectionTitles[section || ""] || "Bearbeiten"}
-              </span>
+              <span className="font-medium">{sectionTitles[section || ''] || 'Bearbeiten'}</span>
             </div>
           </div>
 
@@ -462,7 +415,7 @@ Ich freue mich darauf, euch kennenzulernen!`);
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
+              {saving ? 'Speichern...' : saved ? 'Gespeichert!' : 'Speichern'}
             </button>
           </div>
         </div>
@@ -470,45 +423,34 @@ Ich freue mich darauf, euch kennenzulernen!`);
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
+        
         {/* Hero Editor */}
-        {section === "hero" && (
+        {section === 'hero' && (
           <div className="space-y-6">
             <div className="card p-6">
-              <h2 className="text-lg font-medium text-sage-800 mb-4">
-                Hintergrundbild
-              </h2>
-
-              {/* Upload Zone */}
+              <h2 className="text-lg font-medium text-sage-800 mb-4">Hintergrundbild</h2>
               <div
                 {...heroDropzone.getRootProps()}
-                className={`mb-6 border-2 border-dashed rounded-xl p-6 text-center cursor-pointer ${
-                  heroDropzone.isDragActive
-                    ? "border-sage-400 bg-sage-50"
-                    : "border-sand-200 hover:border-sage-300"
+                className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-2 border-dashed ${
+                  heroDropzone.isDragActive ? 'border-sage-400 bg-sage-50' : 'border-sand-200'
                 }`}
               >
                 <input {...heroDropzone.getInputProps()} />
-                <Upload className="w-8 h-8 text-sage-400 mx-auto mb-2" />
-                <p className="text-sage-600">Neues Bild hochladen</p>
+                <img src={heroImage} alt="Hero" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <div className="text-white text-center">
+                    <Upload className="w-8 h-8 mx-auto mb-2" />
+                    <p>Klicken oder Bild hierher ziehen</p>
+                  </div>
+                </div>
               </div>
-
-              {/* Crop Selector */}
-              <ImageCropSelector
-                imageUrl={heroImage}
-                desktopCrop={heroDesktopCrop}
-                mobileCrop={heroMobileCrop}
-                onDesktopCropChange={setHeroDesktopCrop}
-                onMobileCropChange={setHeroMobileCrop}
-              />
             </div>
 
             <div className="card p-6">
               <h2 className="text-lg font-medium text-sage-800 mb-4">Texte</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                    Überschrift
-                  </label>
+                  <label className="block text-sm font-medium text-sage-700 mb-1.5">Überschrift</label>
                   <input
                     type="text"
                     value={heroTitle}
@@ -517,9 +459,7 @@ Ich freue mich darauf, euch kennenzulernen!`);
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                    Untertitel
-                  </label>
+                  <label className="block text-sm font-medium text-sage-700 mb-1.5">Untertitel</label>
                   <input
                     type="text"
                     value={heroSubtitle}
@@ -533,26 +473,18 @@ Ich freue mich darauf, euch kennenzulernen!`);
         )}
 
         {/* About Editor */}
-        {section === "about" && (
+        {section === 'about' && (
           <div className="space-y-6">
             <div className="card p-6">
-              <h2 className="text-lg font-medium text-sage-800 mb-4">
-                Profilbild
-              </h2>
+              <h2 className="text-lg font-medium text-sage-800 mb-4">Profilbild</h2>
               <div
                 {...aboutDropzone.getRootProps()}
                 className={`relative w-48 aspect-[4/5] rounded-xl overflow-hidden cursor-pointer border-2 border-dashed ${
-                  aboutDropzone.isDragActive
-                    ? "border-sage-400 bg-sage-50"
-                    : "border-sand-200"
+                  aboutDropzone.isDragActive ? 'border-sage-400 bg-sage-50' : 'border-sand-200'
                 }`}
               >
                 <input {...aboutDropzone.getInputProps()} />
-                <img
-                  src={aboutImage}
-                  alt="Profil"
-                  className="w-full h-full object-cover"
-                />
+                <img src={aboutImage} alt="Profil" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                   <Upload className="w-6 h-6 text-white" />
                 </div>
@@ -560,9 +492,7 @@ Ich freue mich darauf, euch kennenzulernen!`);
             </div>
 
             <div className="card p-6">
-              <h2 className="text-lg font-medium text-sage-800 mb-4">
-                Text über dich
-              </h2>
+              <h2 className="text-lg font-medium text-sage-800 mb-4">Text über dich</h2>
               <textarea
                 value={aboutText}
                 onChange={(e) => setAboutText(e.target.value)}
@@ -577,44 +507,34 @@ Ich freue mich darauf, euch kennenzulernen!`);
         )}
 
         {/* Portfolio Editor */}
-        {section === "portfolio" && (
+        {section === 'portfolio' && (
           <div className="space-y-6">
             <div className="card p-6">
-              <h2 className="text-lg font-medium text-sage-800 mb-4">
-                Portfolio-Bilder
-              </h2>
-
+              <h2 className="text-lg font-medium text-sage-800 mb-4">Portfolio-Bilder</h2>
+              
               {/* Upload Zone */}
               <div
                 {...portfolioDropzone.getRootProps()}
                 className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer mb-6 ${
-                  portfolioDropzone.isDragActive
-                    ? "border-sage-400 bg-sage-50"
-                    : "border-sand-200 hover:border-sage-300"
+                  portfolioDropzone.isDragActive ? 'border-sage-400 bg-sage-50' : 'border-sand-200 hover:border-sage-300'
                 }`}
               >
                 <input {...portfolioDropzone.getInputProps()} />
                 <Upload className="w-8 h-8 text-sage-400 mx-auto mb-2" />
-                <p className="text-sage-600">
-                  Bilder hierher ziehen oder klicken
-                </p>
+                <p className="text-sage-600">Bilder hierher ziehen oder klicken</p>
               </div>
 
               {/* Images Grid */}
               <p className="text-sm text-sage-500 mb-3">
-                Ziehe Bilder um die Reihenfolge zu ändern. Wähle S/M/L für die
-                Größe.
+                Ziehe Bilder um die Reihenfolge zu ändern. Wähle S/M/L für die Größe.
               </p>
-
+              
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 onDragEnd={handlePortfolioDragEnd}
               >
-                <SortableContext
-                  items={portfolioImages.map((i) => i.id)}
-                  strategy={rectSortingStrategy}
-                >
+                <SortableContext items={portfolioImages.map(i => i.id)} strategy={rectSortingStrategy}>
                   <div className="columns-2 md:columns-3 gap-3 space-y-3">
                     {portfolioImages.map((image) => (
                       <div key={image.id} className="break-inside-avoid">
@@ -633,82 +553,55 @@ Ich freue mich darauf, euch kennenzulernen!`);
         )}
 
         {/* Prices Editor */}
-        {section === "prices" && (
+        {section === 'prices' && (
           <div className="space-y-6">
             {prices.map((pkg, idx) => (
               <div key={pkg.id} className="card p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-medium text-sage-800">
-                    Paket {idx + 1}
-                  </h2>
-                  {prices.length > 1 && (
-                    <button
-                      onClick={() => removePricePackage(pkg.id)}
-                      className="text-sage-400 hover:text-rose-500 p-1"
-                      title="Paket löschen"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  )}
+                  <h2 className="text-lg font-medium text-sage-800">Paket {idx + 1}</h2>
                 </div>
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                        Name
-                      </label>
+                      <label className="block text-sm font-medium text-sage-700 mb-1.5">Name</label>
                       <input
                         type="text"
                         value={pkg.name}
-                        onChange={(e) =>
-                          updatePrice(pkg.id, "name", e.target.value)
-                        }
+                        onChange={(e) => updatePrice(pkg.id, 'name', e.target.value)}
                         className="input"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                        Preis
-                      </label>
+                      <label className="block text-sm font-medium text-sage-700 mb-1.5">Preis</label>
                       <input
                         type="text"
                         value={pkg.price}
-                        onChange={(e) =>
-                          updatePrice(pkg.id, "price", e.target.value)
-                        }
+                        onChange={(e) => updatePrice(pkg.id, 'price', e.target.value)}
                         className="input"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                      Beschreibung
-                    </label>
+                    <label className="block text-sm font-medium text-sage-700 mb-1.5">Beschreibung</label>
                     <input
                       type="text"
                       value={pkg.description}
-                      onChange={(e) =>
-                        updatePrice(pkg.id, "description", e.target.value)
-                      }
+                      onChange={(e) => updatePrice(pkg.id, 'description', e.target.value)}
                       className="input"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                      Leistungen
-                    </label>
+                    <label className="block text-sm font-medium text-sage-700 mb-1.5">Leistungen</label>
                     <div className="space-y-2">
                       {pkg.features.map((feature, featureIdx) => (
                         <div key={featureIdx} className="flex gap-2">
                           <input
                             type="text"
                             value={feature}
-                            onChange={(e) =>
-                              updateFeature(pkg.id, featureIdx, e.target.value)
-                            }
+                            onChange={(e) => updateFeature(pkg.id, featureIdx, e.target.value)}
                             className="input flex-1"
                             placeholder="z.B. 10 bearbeitete Bilder"
                           />
@@ -732,31 +625,17 @@ Ich freue mich darauf, euch kennenzulernen!`);
                 </div>
               </div>
             ))}
-            {prices.length < 5 && (
-              <button
-                onClick={addPricePackage}
-                className="card p-6 border-2 border-dashed border-sand-200 hover:border-sage-300 
-                   text-sage-500 hover:text-sage-700 transition-colors flex items-center justify-center gap-2 w-full"
-              >
-                <Plus className="w-5 h-5" />
-                Paket hinzufügen
-              </button>
-            )}
           </div>
         )}
 
         {/* Contact Editor */}
-        {section === "contact" && (
+        {section === 'contact' && (
           <div className="space-y-6">
             <div className="card p-6">
-              <h2 className="text-lg font-medium text-sage-800 mb-4">
-                Kontaktdaten
-              </h2>
+              <h2 className="text-lg font-medium text-sage-800 mb-4">Kontaktdaten</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                    E-Mail
-                  </label>
+                  <label className="block text-sm font-medium text-sage-700 mb-1.5">E-Mail</label>
                   <input
                     type="email"
                     value={contactEmail}
@@ -765,9 +644,7 @@ Ich freue mich darauf, euch kennenzulernen!`);
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                    Instagram Handle
-                  </label>
+                  <label className="block text-sm font-medium text-sage-700 mb-1.5">Instagram Handle</label>
                   <input
                     type="text"
                     value={contactInstagramHandle}
@@ -777,9 +654,7 @@ Ich freue mich darauf, euch kennenzulernen!`);
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                    Instagram Link
-                  </label>
+                  <label className="block text-sm font-medium text-sage-700 mb-1.5">Instagram Link</label>
                   <input
                     type="url"
                     value={contactInstagram}

@@ -1,39 +1,24 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import type { Gallery } from "../types";
-import { fetchAllGalleries } from "../lib/mockData";
-import {
-  Camera,
-  Plus,
-  Images,
-  Calendar,
-  ExternalLink,
-  LogOut,
-  Trash2,
-  Edit,
-  Copy,
-  Check,
-  Loader2,
-  Flag,
-  Layout,
-  FolderOpen,
-  Globe,
-  User,
-  DollarSign,
-  Instagram,
-  ImageIcon,
-  ChevronRight,
-} from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import type { Gallery } from '../types';
+import { getAllGalleries, deleteGallery as deleteGalleryFromDB } from '../lib/firestoreService';
+import { signOut } from '../lib/authService';
+import { 
+  Camera, Plus, Images, Calendar, ExternalLink, 
+  LogOut, Trash2, Edit, Copy, Check, Loader2, Flag,
+  Layout, FolderOpen, Globe, User, DollarSign, Instagram,
+  ImageIcon, ChevronRight, Settings
+} from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = "website" | "galleries";
+type Tab = 'website' | 'galleries';
 
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>("galleries");
+  const [activeTab, setActiveTab] = useState<Tab>('website');
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
@@ -42,8 +27,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   useEffect(() => {
     async function load() {
       try {
-        const data = await fetchAllGalleries();
+        const data = await getAllGalleries();
         setGalleries(data);
+      } catch (error) {
+        console.error('Error loading galleries:', error);
       } finally {
         setLoading(false);
       }
@@ -51,17 +38,32 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     load();
   }, []);
 
-  function handleLogout() {
-    localStorage.removeItem("admin_logged_in");
-    onLogout();
-    navigate("/admin/login");
+  async function handleLogout() {
+    try {
+      await signOut();
+      localStorage.removeItem('admin_logged_in');
+      onLogout();
+      navigate('/admin/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+
+  async function handleDeleteGallery(id: string) {
+    try {
+      await deleteGalleryFromDB(id);
+      setGalleries(prev => prev.filter(g => g.id !== id));
+      setDeleteGalleryId(null);
+    } catch (error) {
+      console.error('Error deleting gallery:', error);
+    }
   }
 
   function formatDate(date: Date): string {
-    return new Intl.DateTimeFormat("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+    return new Intl.DateTimeFormat('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
     }).format(date);
   }
 
@@ -81,40 +83,40 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   // Website sections for editing
   const websiteSections = [
-    {
-      id: "hero",
-      name: "Hero-Bereich",
-      description: "Titelbild, Überschrift und Untertitel",
+    { 
+      id: 'hero', 
+      name: 'Hero-Bereich', 
+      description: 'Titelbild, Überschrift und Untertitel',
       icon: Layout,
-      color: "bg-purple-100 text-purple-600",
+      color: 'bg-purple-100 text-purple-600'
     },
-    {
-      id: "about",
-      name: "Über mich",
-      description: "Profilbild und Text über dich",
+    { 
+      id: 'about', 
+      name: 'Über mich', 
+      description: 'Profilbild und Text über dich',
       icon: User,
-      color: "bg-blue-100 text-blue-600",
+      color: 'bg-blue-100 text-blue-600'
     },
-    {
-      id: "portfolio",
-      name: "Portfolio",
-      description: "Beispielbilder mit verschiedenen Größen",
+    { 
+      id: 'portfolio', 
+      name: 'Portfolio', 
+      description: 'Beispielbilder mit verschiedenen Größen',
       icon: ImageIcon,
-      color: "bg-pink-100 text-pink-600",
+      color: 'bg-pink-100 text-pink-600'
     },
-    {
-      id: "prices",
-      name: "Preise",
-      description: "Deine Pakete und Preise",
+    { 
+      id: 'prices', 
+      name: 'Preise', 
+      description: 'Deine Pakete und Preise',
       icon: DollarSign,
-      color: "bg-green-100 text-green-600",
+      color: 'bg-green-100 text-green-600'
     },
-    {
-      id: "contact",
-      name: "Kontakt",
-      description: "E-Mail und Instagram",
+    { 
+      id: 'contact', 
+      name: 'Kontakt', 
+      description: 'E-Mail und Instagram',
       icon: Instagram,
-      color: "bg-orange-100 text-orange-600",
+      color: 'bg-orange-100 text-orange-600'
     },
   ];
 
@@ -124,18 +126,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       <header className="bg-white border-b border-sand-100 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sage-600">
-            <Camera className="w-5 h-5" />
-            <span className="font-serif text-lg md:text-xl">
-              Emily's Galerie
-            </span>
-            <span className="text-xs md:text-sm text-sage-400 ml-1 md:ml-2 hidden sm:inline">
-              Admin
-            </span>
+            <Camera className="w-6 h-6" />
+            <span className="font-serif text-xl">Emily's Galerie</span>
+            <span className="text-sm text-sage-400 ml-2">Admin</span>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <a
-              href="/"
+            <a 
+              href="/" 
               target="_blank"
               className="text-sm text-sage-500 hover:text-sage-700 flex items-center gap-1"
               title="Webseite ansehen"
@@ -143,7 +141,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               <Globe className="w-4 h-4" />
               <span className="hidden sm:inline">Webseite ansehen</span>
             </a>
-            <button
+            <Link
+              to="/admin/settings"
+              className="p-2 rounded-lg hover:bg-sand-100 text-sage-600 transition-colors"
+              title="Einstellungen"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+            <button 
               onClick={handleLogout}
               className="p-2 rounded-lg hover:bg-sand-100 text-sage-600 transition-colors"
               title="Abmelden"
@@ -159,26 +164,26 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex gap-8">
             <button
-              onClick={() => setActiveTab("galleries")}
+              onClick={() => setActiveTab('website')}
               className={`py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-                activeTab === "galleries"
-                  ? "border-sage-500 text-sage-700"
-                  : "border-transparent text-sage-400 hover:text-sage-600"
-              }`}
-            >
-              <FolderOpen className="w-4 h-4" />
-              Kunden-Galerien
-            </button>
-            <button
-              onClick={() => setActiveTab("website")}
-              className={`py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-                activeTab === "website"
-                  ? "border-sage-500 text-sage-700"
-                  : "border-transparent text-sage-400 hover:text-sage-600"
+                activeTab === 'website'
+                  ? 'border-sage-500 text-sage-700'
+                  : 'border-transparent text-sage-400 hover:text-sage-600'
               }`}
             >
               <Layout className="w-4 h-4" />
               Webseite bearbeiten
+            </button>
+            <button
+              onClick={() => setActiveTab('galleries')}
+              className={`py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === 'galleries'
+                  ? 'border-sage-500 text-sage-700'
+                  : 'border-transparent text-sage-400 hover:text-sage-600'
+              }`}
+            >
+              <FolderOpen className="w-4 h-4" />
+              Kunden-Galerien
             </button>
           </div>
         </div>
@@ -186,13 +191,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
+        
         {/* Website Tab */}
-        {activeTab === "website" && (
+        {activeTab === 'website' && (
           <div>
             <div className="mb-8">
-              <h1 className="text-2xl font-serif text-sage-800">
-                Webseite bearbeiten
-              </h1>
+              <h1 className="text-2xl font-serif text-sage-800">Webseite bearbeiten</h1>
               <p className="text-sage-500 mt-1">
                 Passe deine Webseite an - Texte, Bilder und mehr
               </p>
@@ -229,7 +233,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             {/* Preview hint */}
             <div className="mt-8 p-4 bg-sand-50 rounded-xl border border-sand-100">
               <p className="text-sm text-sage-600">
-                💡 <strong>Tipp:</strong> Öffne deine{" "}
+                💡 <strong>Tipp:</strong> Öffne deine{' '}
                 <a href="/" target="_blank" className="text-sage-700 underline">
                   Webseite in einem neuen Tab
                 </a>
@@ -240,20 +244,17 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         )}
 
         {/* Galleries Tab */}
-        {activeTab === "galleries" && (
+        {activeTab === 'galleries' && (
           <div>
             {/* Title + Add Button */}
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h1 className="text-2xl font-serif text-sage-800">
-                  Kunden-Galerien
-                </h1>
+                <h1 className="text-2xl font-serif text-sage-800">Kunden-Galerien</h1>
                 <p className="text-sage-500 mt-1">
-                  {galleries.length}{" "}
-                  {galleries.length === 1 ? "Galerie" : "Galerien"}
+                  {galleries.length} {galleries.length === 1 ? 'Galerie' : 'Galerien'}
                 </p>
               </div>
-
+              
               <Link
                 to="/admin/gallery/new"
                 className="btn-primary flex items-center gap-2"
@@ -288,10 +289,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {galleries.map((gallery) => (
-                  <div
-                    key={gallery.id}
-                    className="card group relative overflow-visible"
-                  >
+                  <div key={gallery.id} className="card group relative overflow-visible">
                     {/* Gallery Preview / Collage */}
                     <div className="aspect-video bg-gradient-to-br from-sand-100 to-sand-200 grid grid-cols-3 gap-0.5 p-0.5 rounded-t-xl overflow-hidden">
                       <div className="col-span-2 row-span-2 bg-sand-200 flex items-center justify-center">
@@ -310,7 +308,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       <h3 className="font-medium text-sage-800 truncate">
                         {gallery.title}
                       </h3>
-
+                      
                       <div className="flex items-center gap-3 mt-2 text-sm text-sage-500">
                         <span className="flex items-center gap-1">
                           <Images className="w-4 h-4" />
@@ -332,7 +330,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           <Edit className="w-4 h-4 inline mr-1" />
                           Bearbeiten
                         </Link>
-
+                        
                         <Link
                           to={`/admin/gallery/${gallery.id}/markers`}
                           className="btn-secondary text-sm px-3"
@@ -340,7 +338,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         >
                           <Flag className="w-4 h-4" />
                         </Link>
-
+                        
                         <button
                           onClick={() => copyGalleryLink(gallery.slug)}
                           className="btn-secondary text-sm px-3"
@@ -383,7 +381,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       {/* Delete Confirmation Modal */}
       {deleteGalleryId && (
         <>
-          <div
+          <div 
             className="fixed inset-0 bg-black/50 z-40"
             onClick={() => setDeleteGalleryId(null)}
           />
@@ -403,12 +401,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   Abbrechen
                 </button>
                 <button
-                  onClick={() => {
-                    setGalleries((prev) =>
-                      prev.filter((g) => g.id !== deleteGalleryId),
-                    );
-                    setDeleteGalleryId(null);
-                  }}
+                  onClick={() => handleDeleteGallery(deleteGalleryId)}
                   className="flex-1 px-6 py-2.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors font-medium"
                 >
                   Löschen

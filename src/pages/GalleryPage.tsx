@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Gallery, Photo, MarkerColor } from '../types';
-import { fetchGalleryBySlug, fetchGalleryPhotos } from '../lib/mockData';
+import { getGalleryBySlug, getGalleryPhotos, addMarker, removeMarker } from '../lib/firestoreService';
 import { useVisitor } from '../hooks/useVisitor';
 import { PhotoGrid } from '../components/gallery/PhotoGrid';
 import { Lightbox } from '../components/gallery/Lightbox';
@@ -34,7 +34,7 @@ export function GalleryPage() {
         setLoading(true);
         setError(null);
         
-        const galleryData = await fetchGalleryBySlug(slug);
+        const galleryData = await getGalleryBySlug(slug);
         if (!galleryData) {
           setError('Galerie nicht gefunden');
           return;
@@ -42,7 +42,7 @@ export function GalleryPage() {
         
         setGallery(galleryData);
         
-        const photosData = await fetchGalleryPhotos(galleryData.id);
+        const photosData = await getGalleryPhotos(galleryData.id);
         setPhotos(photosData);
       } catch (err) {
         setError('Fehler beim Laden der Galerie');
@@ -62,7 +62,7 @@ export function GalleryPage() {
   }, [photos, filterMarker]);
 
   // Toggle marker on photo
-  function handleToggleMarker(photoId: string, color: MarkerColor) {
+  async function handleToggleMarker(photoId: string, color: MarkerColor) {
     if (!visitor) return;
     
     setPhotos(prev => prev.map(photo => {
@@ -96,7 +96,21 @@ export function GalleryPage() {
       return { ...photo, markers: newMarkers };
     }));
     
-    // TODO: Save to Firebase
+    // Save to Firebase
+    try {
+      const photo = photos.find(p => p.id === photoId);
+      const existingMarker = photo?.markers.find(m => m.visitorId === visitor.id);
+      
+      if (existingMarker?.color === color) {
+        // Remove marker
+        await removeMarker(photoId, visitor.id);
+      } else {
+        // Add or update marker
+        await addMarker(photoId, visitor.id, visitor.name || null, color);
+      }
+    } catch (err) {
+      console.error('Error saving marker:', err);
+    }
   }
 
   // Download photos as ZIP

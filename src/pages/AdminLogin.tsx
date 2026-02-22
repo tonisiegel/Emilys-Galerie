@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
-
-// Temporär: Einfacher Login ohne Firebase
-// Später ersetzen wir das mit echtem Firebase Auth
-const DEMO_CREDENTIALS = {
-  email: 'emily@galerie.de',
-  password: 'demo1234'
-};
+import { signIn } from '../lib/authService';
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -25,19 +19,24 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
     setError(null);
     setLoading(true);
 
-    // Simuliere Login-Verzögerung
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Demo-Login Check (später Firebase)
-    if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
+    try {
+      await signIn(email, password);
       localStorage.setItem('admin_logged_in', 'true');
       onLogin();
       navigate('/admin');
-    } else {
-      setError('E-Mail oder Passwort ist falsch');
+    } catch (err: unknown) {
+      console.error('Login error:', err);
+      const errorCode = (err as { code?: string })?.code;
+      if (errorCode === 'auth/invalid-credential' || errorCode === 'auth/wrong-password' || errorCode === 'auth/user-not-found') {
+        setError('E-Mail oder Passwort ist falsch');
+      } else if (errorCode === 'auth/too-many-requests') {
+        setError('Zu viele Versuche. Bitte warte kurz.');
+      } else {
+        setError('Ein Fehler ist aufgetreten. Bitte versuche es erneut.');
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
@@ -72,7 +71,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input pl-10"
-                  placeholder="emily@galerie.de"
+                  placeholder="deine@email.de"
                   required
                 />
               </div>
@@ -121,13 +120,6 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
               )}
             </button>
           </form>
-
-          {/* Demo Hint */}
-          <div className="mt-6 p-3 bg-sand-50 rounded-lg text-sm text-sage-600">
-            <p className="font-medium mb-1">Demo-Zugangsdaten:</p>
-            <p>E-Mail: emily@galerie.de</p>
-            <p>Passwort: demo1234</p>
-          </div>
         </div>
       </div>
     </div>

@@ -46,7 +46,7 @@ export interface Gallery {
   slug: string; // URL-friendly identifier
   title: string;
   welcomeText?: string;
-  coverPhotoId?: string;
+  coverPhotoIds?: string[]; // Up to 3 cover photos for collage
   photoCount: number;
   totalSize: number; // bytes
   isPublic: boolean;

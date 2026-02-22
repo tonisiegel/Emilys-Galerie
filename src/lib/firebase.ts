@@ -1,16 +1,15 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 
-// Firebase configuration - replace with your own config
+// Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-project",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:000000000000:web:0000000000000000000000"
+  apiKey: "AIzaSyD_emH1NZ0CiTAY26rmCcWSohIzmJERwoM",
+  authDomain: "website-fotografie-1e243.firebaseapp.com",
+  projectId: "website-fotografie-1e243",
+  storageBucket: "website-fotografie-1e243.firebasestorage.app",
+  messagingSenderId: "212300744706",
+  appId: "1:212300744706:web:b79b03d04b98bc21503f1b"
 };
 
 // Initialize Firebase
@@ -19,6 +18,5 @@ const app = initializeApp(firebaseConfig);
 // Initialize services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
 
 export default app;
