@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Instagram, Mail, ChevronDown, Camera, Loader2 } from 'lucide-react';
+import { Instagram, Mail, ChevronDown, ChevronUp, Camera, Loader2, Star } from 'lucide-react';
 import { getWebsiteContent } from '../lib/firestoreService';
 
 // Types for editable content
+interface BrandingContent {
+  name: string;
+  logoUrl: string;
+}
+
 interface HeroContent {
   title: string;
   subtitle: string;
@@ -22,12 +27,18 @@ interface PortfolioImage {
   size: 'S' | 'M' | 'L';
 }
 
-interface PricePackage {
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+interface Review {
   id: string;
   name: string;
-  price: string;
-  description: string;
-  features: string[];
+  text: string;
+  rating: number;
+  date: string;
 }
 
 interface ContactContent {
@@ -37,6 +48,11 @@ interface ContactContent {
 }
 
 // Fallback content if Firebase is empty
+const fallbackBranding: BrandingContent = {
+  name: "emilykleinfotografie",
+  logoUrl: ""
+};
+
 const fallbackHero: HeroContent = {
   title: "Emily's Fotografie",
   subtitle: "Momente festhalten, Erinnerungen schaffen",
@@ -55,13 +71,16 @@ const fallbackContact: ContactContent = {
 };
 
 export function LandingPage() {
+  const [branding, setBranding] = useState<BrandingContent>(fallbackBranding);
   const [hero, setHero] = useState<HeroContent>(fallbackHero);
   const [about, setAbout] = useState<AboutContent>(fallbackAbout);
   const [portfolio, setPortfolio] = useState<PortfolioImage[]>([]);
-  const [prices, setPrices] = useState<PricePackage[]>([]);
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [contact, setContact] = useState<ContactContent>(fallbackContact);
   const [scrolled, setScrolled] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [openFaqId, setOpenFaqId] = useState<string | null>(null);
 
   // Load content from Firebase
   useEffect(() => {
@@ -69,10 +88,12 @@ export function LandingPage() {
       try {
         const content = await getWebsiteContent();
         if (content) {
+          if (content.branding) setBranding(content.branding);
           if (content.hero) setHero(content.hero);
           if (content.about) setAbout(content.about);
           if (content.portfolio) setPortfolio(content.portfolio);
-          if (content.prices) setPrices(content.prices);
+          if (content.faq) setFaqs(content.faq);
+          if (content.reviews) setReviews(content.reviews);
           if (content.contact) setContact(content.contact);
         }
       } catch (error) {
@@ -113,20 +134,36 @@ export function LandingPage() {
           <Link to="/" className={`flex items-center gap-2 font-serif text-xl transition-colors ${
             scrolled ? 'text-sage-700' : 'text-white'
           }`}>
-            <Camera className="w-6 h-6" />
-            Emily's Fotografie
+            {branding.logoUrl ? (
+              <img
+                src={branding.logoUrl}
+                alt={branding.name}
+                className="h-10 w-auto object-contain"
+              />
+            ) : (
+              <>
+                <Camera className="w-6 h-6" />
+                {branding.name}
+              </>
+            )}
           </Link>
-          
+
           <nav className="hidden md:flex items-center gap-8">
-            {['Über mich', 'Portfolio', 'Preise', 'Kontakt'].map((item) => (
-              <a 
-                key={item}
-                href={`#${item.toLowerCase().replace(' ', '-')}`}
+            {[
+              { label: 'Über mich', anchor: 'über-mich' },
+              { label: 'Portfolio', anchor: 'portfolio' },
+              { label: 'Fragen', anchor: 'fragen' },
+              { label: 'Rezensionen', anchor: 'rezensionen' },
+              { label: 'Kontakt', anchor: 'kontakt' },
+            ].map((item) => (
+              <a
+                key={item.anchor}
+                href={`#${item.anchor}`}
                 className={`text-sm font-medium transition-colors hover:opacity-70 ${
                   scrolled ? 'text-sage-700' : 'text-white'
                 }`}
               >
-                {item}
+                {item.label}
               </a>
             ))}
           </nav>
@@ -237,49 +274,90 @@ export function LandingPage() {
         </section>
       )}
 
-      {/* Prices Section */}
-      {prices.length > 0 && (
-        <section id="preise" className="py-24 px-4">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="font-serif text-4xl text-sage-800 mb-4 text-center">Preise</h2>
+      {/* FAQ Section */}
+      {faqs.length > 0 && (
+        <section id="fragen" className="py-24 px-4">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="font-serif text-4xl text-sage-800 mb-4 text-center">Häufige Fragen</h2>
             <p className="text-sage-600 text-center mb-12 max-w-xl mx-auto">
-              Transparente Preise für unvergessliche Erinnerungen
+              Alles, was du vor unserem Shooting wissen solltest
             </p>
 
-            <div className={`grid gap-6 ${prices.length === 1 ? 'max-w-md mx-auto' : prices.length === 2 ? 'md:grid-cols-2 max-w-3xl mx-auto' : 'md:grid-cols-3'}`}>
-              {prices.map((pkg, idx) => (
-              <div 
-                key={pkg.id}
-                className={`bg-white rounded-2xl p-6 shadow-sm border border-sand-100
-                           hover:shadow-lg transition-shadow ${
-                             idx === 1 ? 'md:-mt-4 md:mb-4 ring-2 ring-sage-300' : ''
-                           }`}
-              >
-                <h3 className="font-serif text-2xl text-sage-800 mb-2">{pkg.name}</h3>
-                <p className="text-3xl font-medium text-sage-600 mb-3">{pkg.price}</p>
-                <p className="text-sage-500 text-sm mb-6">{pkg.description}</p>
-                
-                <ul className="space-y-2">
-                  {pkg.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-sage-600">
-                      <span className="text-sage-400 mt-1">✓</span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <a 
-                  href="#kontakt"
-                  className="block mt-6 text-center py-2.5 rounded-lg bg-sand-100 text-sage-700 
-                           hover:bg-sage-600 hover:text-white transition-colors font-medium"
-                >
-                  Anfragen
-                </a>
-              </div>
-            ))}
+            <div className="space-y-3">
+              {faqs.map((item) => {
+                const isOpen = openFaqId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-2xl border border-sand-100 shadow-sm overflow-hidden"
+                  >
+                    <button
+                      onClick={() => setOpenFaqId(isOpen ? null : item.id)}
+                      className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-sand-50 transition-colors"
+                    >
+                      <span className="font-medium text-sage-800">{item.question}</span>
+                      {isOpen ? (
+                        <ChevronUp className="w-5 h-5 text-sage-500 flex-shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-sage-500 flex-shrink-0" />
+                      )}
+                    </button>
+                    {isOpen && (
+                      <div className="px-6 pb-5 text-sage-600 leading-relaxed whitespace-pre-line">
+                        {item.answer}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* Reviews Section */}
+      {reviews.length > 0 && (
+        <section id="rezensionen" className="py-24 px-4 bg-sand-50">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-serif text-4xl text-sage-800 mb-4 text-center">Rezensionen</h2>
+            <p className="text-sage-600 text-center mb-12 max-w-xl mx-auto">
+              Was meine Kund:innen über die Shootings sagen
+            </p>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-sand-100 flex flex-col"
+                >
+                  {review.rating > 0 && (
+                    <div className="flex gap-0.5 mb-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < review.rating
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'text-sand-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-sage-600 leading-relaxed mb-4 flex-1 italic">
+                    „{review.text}"
+                  </p>
+                  <div className="border-t border-sand-100 pt-3">
+                    <p className="font-medium text-sage-800">{review.name}</p>
+                    {review.date && (
+                      <p className="text-sm text-sage-400">{review.date}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Contact / Instagram Section */}
@@ -339,7 +417,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="py-8 px-4 bg-sage-700 text-white/60 text-sm">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <p>© {new Date().getFullYear()} Emily's Fotografie. Alle Rechte vorbehalten.</p>
+          <p>© {new Date().getFullYear()} {branding.name}. Alle Rechte vorbehalten.</p>
           <div className="flex items-center gap-6">
             <Link to="/impressum" className="hover:text-white transition-colors">Impressum</Link>
             <Link to="/datenschutz" className="hover:text-white transition-colors">Datenschutz</Link>

@@ -239,6 +239,10 @@ export async function getGalleryMarkers(galleryId: string): Promise<Map<string, 
 // ============ WEBSITE CONTENT ============
 
 interface WebsiteContent {
+  branding: {
+    name: string;
+    logoUrl: string;
+  };
   hero: {
     title: string;
     subtitle: string;
@@ -256,12 +260,17 @@ interface WebsiteContent {
     alt: string;
     size: 'S' | 'M' | 'L';
   }>;
-  prices: Array<{
+  faq: Array<{
+    id: string;
+    question: string;
+    answer: string;
+  }>;
+  reviews: Array<{
     id: string;
     name: string;
-    price: string;
-    description: string;
-    features: string[];
+    text: string;
+    rating: number;
+    date: string;
   }>;
   contact: {
     email: string;

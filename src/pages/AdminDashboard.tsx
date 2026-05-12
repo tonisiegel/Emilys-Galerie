@@ -3,11 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { Gallery } from '../types';
 import { getAllGalleries, deleteGallery as deleteGalleryFromDB } from '../lib/firestoreService';
 import { signOut } from '../lib/authService';
-import { 
-  Camera, Plus, Images, Calendar, ExternalLink, 
+import {
+  Camera, Plus, Images, Calendar, ExternalLink,
   LogOut, Trash2, Edit, Copy, Check, Loader2, Flag,
-  Layout, FolderOpen, Globe, User, DollarSign, Instagram,
-  ImageIcon, ChevronRight, Settings
+  Layout, FolderOpen, Globe, User, Instagram,
+  ImageIcon, ChevronRight, Settings, Tag, HelpCircle, Star
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -83,37 +83,51 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   // Website sections for editing
   const websiteSections = [
-    { 
-      id: 'hero', 
-      name: 'Hero-Bereich', 
+    {
+      id: 'branding',
+      name: 'Logo & Name',
+      description: 'Logo oder Name oben links auf der Webseite',
+      icon: Tag,
+      color: 'bg-amber-100 text-amber-600'
+    },
+    {
+      id: 'hero',
+      name: 'Hero-Bereich',
       description: 'Titelbild, Überschrift und Untertitel',
       icon: Layout,
       color: 'bg-purple-100 text-purple-600'
     },
-    { 
-      id: 'about', 
-      name: 'Über mich', 
+    {
+      id: 'about',
+      name: 'Über mich',
       description: 'Profilbild und Text über dich',
       icon: User,
       color: 'bg-blue-100 text-blue-600'
     },
-    { 
-      id: 'portfolio', 
-      name: 'Portfolio', 
+    {
+      id: 'portfolio',
+      name: 'Portfolio',
       description: 'Beispielbilder mit verschiedenen Größen',
       icon: ImageIcon,
       color: 'bg-pink-100 text-pink-600'
     },
-    { 
-      id: 'prices', 
-      name: 'Preise', 
-      description: 'Deine Pakete und Preise',
-      icon: DollarSign,
+    {
+      id: 'faq',
+      name: 'Häufige Fragen',
+      description: 'Frage-Antwort-Liste für deine Kund:innen',
+      icon: HelpCircle,
       color: 'bg-green-100 text-green-600'
     },
-    { 
-      id: 'contact', 
-      name: 'Kontakt', 
+    {
+      id: 'reviews',
+      name: 'Rezensionen',
+      description: 'Stimmen deiner Kund:innen',
+      icon: Star,
+      color: 'bg-yellow-100 text-yellow-600'
+    },
+    {
+      id: 'contact',
+      name: 'Kontakt',
       description: 'E-Mail und Instagram',
       icon: Instagram,
       color: 'bg-orange-100 text-orange-600'

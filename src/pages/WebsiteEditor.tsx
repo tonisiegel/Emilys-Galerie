@@ -19,8 +19,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  ArrowLeft, Save, Upload, X, Loader2, Check,
-  Camera, Plus, Trash2, GripVertical, ExternalLink
+  ArrowLeft, Save, Upload, Loader2, Check,
+  Camera, Plus, Trash2, GripVertical, ExternalLink,
+  ArrowUp, ArrowDown, Star
 } from 'lucide-react';
 import { getWebsiteContent, updateWebsiteContent } from '../lib/firestoreService';
 import { uploadPhoto } from '../lib/uploadService';
@@ -33,12 +34,18 @@ interface PortfolioImage {
   size: 'S' | 'M' | 'L';
 }
 
-interface PricePackage {
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+interface Review {
   id: string;
   name: string;
-  price: string;
-  description: string;
-  features: string[];
+  text: string;
+  rating: number;
+  date: string;
 }
 
 // Sortable Portfolio Image
@@ -125,6 +132,11 @@ function SortablePortfolioImage({
 export function WebsiteEditor() {
   const { section } = useParams<{ section: string }>();
 
+  // Branding state
+  const [brandName, setBrandName] = useState('');
+  const [brandLogoUrl, setBrandLogoUrl] = useState('');
+  const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null);
+
   // Hero state
   const [heroTitle, setHeroTitle] = useState("");
   const [heroSubtitle, setHeroSubtitle] = useState("");
@@ -139,8 +151,11 @@ export function WebsiteEditor() {
   // Portfolio state
   const [portfolioImages, setPortfolioImages] = useState<PortfolioImage[]>([]);
 
-  // Prices state
-  const [prices, setPrices] = useState<PricePackage[]>([]);
+  // FAQ state
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+
+  // Reviews state
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   // Contact state
   const [contactEmail, setContactEmail] = useState('');
@@ -158,6 +173,10 @@ export function WebsiteEditor() {
       try {
         const content = await getWebsiteContent();
         if (content) {
+          if (content.branding) {
+            setBrandName(content.branding.name || "");
+            setBrandLogoUrl(content.branding.logoUrl || "");
+          }
           if (content.hero) {
             setHeroTitle(content.hero.title || "");
             setHeroSubtitle(content.hero.subtitle || "");
@@ -170,8 +189,11 @@ export function WebsiteEditor() {
           if (content.portfolio) {
             setPortfolioImages(content.portfolio);
           }
-          if (content.prices) {
-            setPrices(content.prices);
+          if (content.faq) {
+            setFaqs(content.faq);
+          }
+          if (content.reviews) {
+            setReviews(content.reviews);
           }
           if (content.contact) {
             setContactEmail(content.contact.email || "");
@@ -197,6 +219,13 @@ export function WebsiteEditor() {
   );
 
   // Handle image upload
+  const onDropLogo = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles[0]) {
+      setBrandLogoFile(acceptedFiles[0]);
+      setBrandLogoUrl(URL.createObjectURL(acceptedFiles[0]));
+    }
+  }, []);
+
   const onDropHero = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles[0]) {
       setHeroImageFile(acceptedFiles[0]);
@@ -222,6 +251,7 @@ export function WebsiteEditor() {
     setPortfolioImages(prev => [...prev, ...newImages as PortfolioImage[]]);
   }, []);
 
+  const logoDropzone = useDropzone({ onDrop: onDropLogo, accept: { 'image/*': [] }, multiple: false });
   const heroDropzone = useDropzone({ onDrop: onDropHero, accept: { 'image/*': [] }, multiple: false });
   const aboutDropzone = useDropzone({ onDrop: onDropAbout, accept: { 'image/*': [] }, multiple: false });
   const portfolioDropzone = useDropzone({ onDrop: onDropPortfolio, accept: { 'image/*': [] }, multiple: true });
@@ -248,98 +278,138 @@ export function WebsiteEditor() {
     ));
   }
 
-  // Price handlers
-  function updatePrice(id: string, field: keyof PricePackage, value: string | string[]) {
-    setPrices(prev => prev.map(p => 
-      p.id === id ? { ...p, [field]: value } : p
-    ));
+  // FAQ handlers
+  function updateFaq(id: string, field: 'question' | 'answer', value: string) {
+    setFaqs(prev => prev.map(f => f.id === id ? { ...f, [field]: value } : f));
   }
 
-  function addFeature(priceId: string) {
-    setPrices(prev => prev.map(p => 
-      p.id === priceId ? { ...p, features: [...p.features, ''] } : p
-    ));
+  function addFaq() {
+    setFaqs(prev => [
+      ...prev,
+      { id: `new-${Date.now()}`, question: 'Neue Frage', answer: '' }
+    ]);
   }
 
-  function updateFeature(priceId: string, featureIndex: number, value: string) {
-    setPrices(prev => prev.map(p => 
-      p.id === priceId 
-        ? { ...p, features: p.features.map((f, i) => i === featureIndex ? value : f) } 
-        : p
-    ));
+  function removeFaq(id: string) {
+    setFaqs(prev => prev.filter(f => f.id !== id));
   }
 
-  function removeFeature(priceId: string, featureIndex: number) {
-    setPrices(prev => prev.map(p => 
-      p.id === priceId 
-        ? { ...p, features: p.features.filter((_, i) => i !== featureIndex) } 
-        : p
-    ));
+  function moveFaq(id: string, direction: -1 | 1) {
+    setFaqs(prev => {
+      const idx = prev.findIndex(f => f.id === id);
+      const newIdx = idx + direction;
+      if (idx < 0 || newIdx < 0 || newIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+      return next;
+    });
+  }
+
+  // Review handlers
+  function updateReview(id: string, field: 'name' | 'text' | 'rating' | 'date', value: string | number) {
+    setReviews(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+  }
+
+  function addReview() {
+    setReviews(prev => [
+      ...prev,
+      { id: `new-${Date.now()}`, name: '', text: '', rating: 5, date: '' }
+    ]);
+  }
+
+  function removeReview(id: string) {
+    setReviews(prev => prev.filter(r => r.id !== id));
+  }
+
+  function moveReview(id: string, direction: -1 | 1) {
+    setReviews(prev => {
+      const idx = prev.findIndex(r => r.id === id);
+      const newIdx = idx + direction;
+      if (idx < 0 || newIdx < 0 || newIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+      return next;
+    });
   }
 
   // Save handler
   async function handleSave() {
     setSaving(true);
-    
+
     try {
+      // Branding: Logo hochladen falls neu
+      if (section === 'branding' || !section) {
+        let finalLogoUrl = brandLogoUrl;
+        if (brandLogoFile) {
+          const result = await uploadPhoto(brandLogoFile, 'website');
+          finalLogoUrl = result.url;
+          setBrandLogoFile(null);
+          setBrandLogoUrl(finalLogoUrl);
+        }
+        await updateWebsiteContent('branding', {
+          name: brandName,
+          logoUrl: finalLogoUrl
+        });
+      }
+
       // Upload hero image if changed
       let finalHeroImage = heroImage;
-      if (heroImageFile) {
-        const result = await uploadPhoto(heroImageFile, 'website');
-        finalHeroImage = result.url;
-        setHeroImageFile(null);
-      }
-
-      // Upload about image if changed
-      let finalAboutImage = aboutImage;
-      if (aboutImageFile) {
-        const result = await uploadPhoto(aboutImageFile, 'website');
-        finalAboutImage = result.url;
-        setAboutImageFile(null);
-      }
-
-      // Upload new portfolio images
-      const updatedPortfolio: PortfolioImage[] = [];
-      for (const img of portfolioImages) {
-        const imgWithFile = img as PortfolioImage & { _file?: File };
-        if (imgWithFile._file) {
-          const result = await uploadPhoto(imgWithFile._file, 'website');
-          updatedPortfolio.push({
-            id: result.filename,
-            url: result.url,
-            alt: img.alt,
-            size: img.size
-          });
-        } else {
-          updatedPortfolio.push(img);
-        }
-      }
-      setPortfolioImages(updatedPortfolio);
-
-      // Save to Firebase based on current section
       if (section === 'hero' || !section) {
+        if (heroImageFile) {
+          const result = await uploadPhoto(heroImageFile, 'website');
+          finalHeroImage = result.url;
+          setHeroImageFile(null);
+        }
         await updateWebsiteContent('hero', {
           title: heroTitle,
           subtitle: heroSubtitle,
           backgroundImage: finalHeroImage
         });
       }
-      
+
+      // Upload about image if changed
+      let finalAboutImage = aboutImage;
       if (section === 'about' || !section) {
+        if (aboutImageFile) {
+          const result = await uploadPhoto(aboutImageFile, 'website');
+          finalAboutImage = result.url;
+          setAboutImageFile(null);
+        }
         await updateWebsiteContent('about', {
           text: aboutText,
           image: finalAboutImage
         });
       }
-      
+
+      // Upload new portfolio images
       if (section === 'portfolio' || !section) {
+        const updatedPortfolio: PortfolioImage[] = [];
+        for (const img of portfolioImages) {
+          const imgWithFile = img as PortfolioImage & { _file?: File };
+          if (imgWithFile._file) {
+            const result = await uploadPhoto(imgWithFile._file, 'website');
+            updatedPortfolio.push({
+              id: result.filename,
+              url: result.url,
+              alt: img.alt,
+              size: img.size
+            });
+          } else {
+            updatedPortfolio.push(img);
+          }
+        }
+        setPortfolioImages(updatedPortfolio);
         await updateWebsiteContent('portfolio', updatedPortfolio);
       }
-      
-      if (section === 'prices' || !section) {
-        await updateWebsiteContent('prices', prices);
+
+      if (section === 'faq' || !section) {
+        await updateWebsiteContent('faq', faqs);
       }
-      
+
+      if (section === 'reviews' || !section) {
+        await updateWebsiteContent('reviews', reviews);
+      }
+
       if (section === 'contact' || !section) {
         await updateWebsiteContent('contact', {
           email: contactEmail,
@@ -360,10 +430,12 @@ export function WebsiteEditor() {
 
   // Section titles
   const sectionTitles: Record<string, string> = {
+    branding: 'Logo & Name',
     hero: 'Hero-Bereich',
     about: 'Über mich',
     portfolio: 'Portfolio',
-    prices: 'Preise',
+    faq: 'Häufige Fragen',
+    reviews: 'Rezensionen',
     contact: 'Kontakt'
   };
 
@@ -423,7 +495,71 @@ export function WebsiteEditor() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        
+
+        {/* Branding Editor (Logo & Name oben links) */}
+        {section === 'branding' && (
+          <div className="space-y-6">
+            <div className="card p-6">
+              <h2 className="text-lg font-medium text-sage-800 mb-2">Logo (optional)</h2>
+              <p className="text-sm text-sage-500 mb-4">
+                Wenn ein Logo hochgeladen ist, wird es oben links auf der Webseite angezeigt — statt deines Namens.
+              </p>
+
+              <div className="flex items-center gap-4">
+                <div
+                  {...logoDropzone.getRootProps()}
+                  className={`relative w-40 h-20 rounded-xl overflow-hidden cursor-pointer border-2 border-dashed flex items-center justify-center ${
+                    logoDropzone.isDragActive
+                      ? 'border-sage-400 bg-sage-50'
+                      : 'border-sand-200 hover:border-sage-300'
+                  }`}
+                >
+                  <input {...logoDropzone.getInputProps()} />
+                  {brandLogoUrl ? (
+                    <img
+                      src={brandLogoUrl}
+                      alt="Logo"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <Upload className="w-5 h-5 text-sage-400 mx-auto mb-1" />
+                      <p className="text-xs text-sage-500">Logo hochladen</p>
+                    </div>
+                  )}
+                </div>
+
+                {brandLogoUrl && (
+                  <button
+                    onClick={() => {
+                      setBrandLogoUrl('');
+                      setBrandLogoFile(null);
+                    }}
+                    className="text-sm text-sage-500 hover:text-rose-500 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Logo entfernen
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="card p-6">
+              <h2 className="text-lg font-medium text-sage-800 mb-2">Seitenname</h2>
+              <p className="text-sm text-sage-500 mb-4">
+                Wird oben links angezeigt (wenn kein Logo da ist) und im Footer.
+              </p>
+              <input
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                className="input"
+                placeholder="z.B. emilykleinfotografie"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Hero Editor */}
         {section === 'hero' && (
           <div className="space-y-6">
@@ -552,79 +688,210 @@ export function WebsiteEditor() {
           </div>
         )}
 
-        {/* Prices Editor */}
-        {section === 'prices' && (
+        {/* FAQ Editor */}
+        {section === 'faq' && (
           <div className="space-y-6">
-            {prices.map((pkg, idx) => (
-              <div key={pkg.id} className="card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-medium text-sage-800">Paket {idx + 1}</h2>
-                </div>
+            <div className="card p-6">
+              <h2 className="text-lg font-medium text-sage-800 mb-2">Häufige Fragen</h2>
+              <p className="text-sm text-sage-500 mb-6">
+                Frage + Antwort. Die Reihenfolge kannst du mit den Pfeilen ändern.
+              </p>
 
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-sage-700 mb-1.5">Name</label>
-                      <input
-                        type="text"
-                        value={pkg.name}
-                        onChange={(e) => updatePrice(pkg.id, 'name', e.target.value)}
-                        className="input"
-                      />
+              <div className="space-y-4">
+                {faqs.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className="border border-sand-200 rounded-xl p-4 bg-sand-50/50"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-sage-500">Frage {idx + 1}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => moveFaq(item.id, -1)}
+                          disabled={idx === 0}
+                          className="p-1.5 rounded-lg text-sage-500 hover:bg-sand-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Nach oben"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => moveFaq(item.id, 1)}
+                          disabled={idx === faqs.length - 1}
+                          className="p-1.5 rounded-lg text-sage-500 hover:bg-sand-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Nach unten"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => removeFaq(item.id)}
+                          className="p-1.5 rounded-lg text-sage-400 hover:bg-rose-50 hover:text-rose-500"
+                          title="Frage löschen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-sage-700 mb-1.5">Preis</label>
-                      <input
-                        type="text"
-                        value={pkg.price}
-                        onChange={(e) => updatePrice(pkg.id, 'price', e.target.value)}
-                        className="input"
-                      />
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-sage-700 mb-1.5">Frage</label>
+                        <input
+                          type="text"
+                          value={item.question}
+                          onChange={(e) => updateFaq(item.id, 'question', e.target.value)}
+                          className="input"
+                          placeholder="z.B. Wie lange dauert ein Shooting?"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-sage-700 mb-1.5">Antwort</label>
+                        <textarea
+                          value={item.answer}
+                          onChange={(e) => updateFaq(item.id, 'answer', e.target.value)}
+                          className="input min-h-[80px] resize-y"
+                          placeholder="Antwort schreiben..."
+                        />
+                      </div>
                     </div>
                   </div>
+                ))}
 
-                  <div>
-                    <label className="block text-sm font-medium text-sage-700 mb-1.5">Beschreibung</label>
-                    <input
-                      type="text"
-                      value={pkg.description}
-                      onChange={(e) => updatePrice(pkg.id, 'description', e.target.value)}
-                      className="input"
-                    />
-                  </div>
+                <button
+                  onClick={addFaq}
+                  className="w-full p-4 border-2 border-dashed border-sand-200 hover:border-sage-300
+                             text-sage-500 hover:text-sage-700 rounded-xl transition-colors
+                             flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Frage hinzufügen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-sage-700 mb-1.5">Leistungen</label>
-                    <div className="space-y-2">
-                      {pkg.features.map((feature, featureIdx) => (
-                        <div key={featureIdx} className="flex gap-2">
+        {/* Reviews Editor */}
+        {section === 'reviews' && (
+          <div className="space-y-6">
+            <div className="card p-6">
+              <h2 className="text-lg font-medium text-sage-800 mb-2">Rezensionen</h2>
+              <p className="text-sm text-sage-500 mb-6">
+                Hier kannst du Stimmen deiner Kund:innen einpflegen.
+              </p>
+
+              <div className="space-y-4">
+                {reviews.map((review, idx) => (
+                  <div
+                    key={review.id}
+                    className="border border-sand-200 rounded-xl p-4 bg-sand-50/50"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-sage-500">Rezension {idx + 1}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => moveReview(review.id, -1)}
+                          disabled={idx === 0}
+                          className="p-1.5 rounded-lg text-sage-500 hover:bg-sand-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Nach oben"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => moveReview(review.id, 1)}
+                          disabled={idx === reviews.length - 1}
+                          className="p-1.5 rounded-lg text-sage-500 hover:bg-sand-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Nach unten"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => removeReview(review.id)}
+                          className="p-1.5 rounded-lg text-sage-400 hover:bg-rose-50 hover:text-rose-500"
+                          title="Rezension löschen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-sage-700 mb-1.5">Name</label>
                           <input
                             type="text"
-                            value={feature}
-                            onChange={(e) => updateFeature(pkg.id, featureIdx, e.target.value)}
-                            className="input flex-1"
-                            placeholder="z.B. 10 bearbeitete Bilder"
+                            value={review.name}
+                            onChange={(e) => updateReview(review.id, 'name', e.target.value)}
+                            className="input"
+                            placeholder="z.B. Anna & Jonas"
                           />
-                          <button
-                            onClick={() => removeFeature(pkg.id, featureIdx)}
-                            className="p-2 text-sage-400 hover:text-rose-500"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
                         </div>
-                      ))}
-                      <button
-                        onClick={() => addFeature(pkg.id)}
-                        className="text-sm text-sage-500 hover:text-sage-700 flex items-center gap-1"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Leistung hinzufügen
-                      </button>
+                        <div>
+                          <label className="block text-sm font-medium text-sage-700 mb-1.5">Datum (optional)</label>
+                          <input
+                            type="text"
+                            value={review.date}
+                            onChange={(e) => updateReview(review.id, 'date', e.target.value)}
+                            className="input"
+                            placeholder="z.B. Juni 2024"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-sage-700 mb-1.5">Sterne (0–5)</label>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button
+                              key={n}
+                              onClick={() => updateReview(review.id, 'rating', review.rating === n ? 0 : n)}
+                              className="p-1"
+                              title={`${n} Sterne`}
+                            >
+                              <Star
+                                className={`w-6 h-6 ${
+                                  n <= review.rating
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'text-sand-300'
+                                }`}
+                              />
+                            </button>
+                          ))}
+                          {review.rating > 0 && (
+                            <button
+                              onClick={() => updateReview(review.id, 'rating', 0)}
+                              className="ml-2 text-xs text-sage-500 hover:text-sage-700"
+                            >
+                              keine Sterne
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-sage-700 mb-1.5">Text</label>
+                        <textarea
+                          value={review.text}
+                          onChange={(e) => updateReview(review.id, 'text', e.target.value)}
+                          className="input min-h-[100px] resize-y"
+                          placeholder="Rezension einfügen..."
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                ))}
+
+                <button
+                  onClick={addReview}
+                  className="w-full p-4 border-2 border-dashed border-sand-200 hover:border-sage-300
+                             text-sage-500 hover:text-sage-700 rounded-xl transition-colors
+                             flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Rezension hinzufügen
+                </button>
               </div>
-            ))}
+            </div>
           </div>
         )}
 
