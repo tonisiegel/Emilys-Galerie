@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Gallery } from '../types';
-import { getAllGalleries, deleteGallery as deleteGalleryFromDB } from '../lib/firestoreService';
+import type { Gallery, Photo } from '../types';
+import { getAllGalleries, deleteGallery as deleteGalleryFromDB, getPhoto } from '../lib/firestoreService';
 import { signOut } from '../lib/authService';
 import {
   Camera, Plus, Images, Calendar, ExternalLink,
@@ -20,6 +20,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('website');
   const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [coverPhotosByGallery, setCoverPhotosByGallery] = useState<Record<string, Photo[]>>({});
   const [loading, setLoading] = useState(true);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [deleteGalleryId, setDeleteGalleryId] = useState<string | null>(null);
@@ -29,6 +30,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       try {
         const data = await getAllGalleries();
         setGalleries(data);
+
+        // Cover-Photos für alle Galerien parallel laden
+        const coversMap: Record<string, Photo[]> = {};
+        await Promise.all(
+          data.map(async (g) => {
+            if (!g.coverPhotoIds || g.coverPhotoIds.length === 0) return;
+            const photos = await Promise.all(
+              g.coverPhotoIds.slice(0, 3).map((id) => getPhoto(id))
+            );
+            coversMap[g.id] = photos.filter((p): p is Photo => p !== null);
+          })
+        );
+        setCoverPhotosByGallery(coversMap);
       } catch (error) {
         console.error('Error loading galleries:', error);
       } finally {
@@ -302,18 +316,51 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {galleries.map((gallery) => (
+                {galleries.map((gallery) => {
+                  const covers = coverPhotosByGallery[gallery.id] || [];
+                  const [bigCover, smallCover1, smallCover2] = [covers[0], covers[1], covers[2]];
+                  return (
                   <div key={gallery.id} className="card group relative overflow-visible">
                     {/* Gallery Preview / Collage */}
                     <div className="aspect-video bg-gradient-to-br from-sand-100 to-sand-200 grid grid-cols-3 gap-0.5 p-0.5 rounded-t-xl overflow-hidden">
-                      <div className="col-span-2 row-span-2 bg-sand-200 flex items-center justify-center">
-                        <Images className="w-10 h-10 text-sand-400" />
+                      <div className="col-span-2 row-span-2 bg-sand-200 flex items-center justify-center overflow-hidden">
+                        {bigCover ? (
+                          <img
+                            src={bigCover.thumbnailUrl || bigCover.url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Images className="w-10 h-10 text-sand-400" />
+                        )}
                       </div>
-                      <div className="bg-sand-200 flex items-center justify-center">
-                        <Images className="w-6 h-6 text-sand-400" />
+                      <div className="bg-sand-200 flex items-center justify-center overflow-hidden">
+                        {smallCover1 ? (
+                          <img
+                            src={smallCover1.thumbnailUrl || smallCover1.url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Images className="w-6 h-6 text-sand-400" />
+                        )}
                       </div>
-                      <div className="bg-sand-200 flex items-center justify-center">
-                        <Images className="w-6 h-6 text-sand-400" />
+                      <div className="bg-sand-200 flex items-center justify-center overflow-hidden">
+                        {smallCover2 ? (
+                          <img
+                            src={smallCover2.thumbnailUrl || smallCover2.url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Images className="w-6 h-6 text-sand-400" />
+                        )}
                       </div>
                     </div>
 
@@ -385,7 +432,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
