@@ -173,10 +173,16 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center">
         {/* Background Image */}
-        <div 
-          className={`absolute inset-0 bg-cover bg-center ${!hero.backgroundImage ? 'bg-sage-600' : ''}`}
-          style={hero.backgroundImage ? { backgroundImage: `url(${hero.backgroundImage})` } : undefined}
-        >
+        <div className={`absolute inset-0 ${!hero.backgroundImage ? 'bg-sage-600' : ''}`}>
+          {hero.backgroundImage && (
+            <img
+              src={hero.backgroundImage}
+              alt=""
+              fetchPriority="high"
+              decoding="async"
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-black/40" />
         </div>
 
@@ -207,9 +213,11 @@ export function LandingPage() {
             <div className="relative">
               <div className="aspect-[4/5] rounded-2xl overflow-hidden shadow-xl bg-sage-200">
                 {about.image ? (
-                  <img 
-                    src={about.image} 
+                  <img
+                    src={about.image}
                     alt="Emily"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -261,9 +269,11 @@ export function LandingPage() {
                     className={`break-inside-avoid rounded-xl overflow-hidden shadow-md 
                                hover:shadow-xl transition-shadow duration-300 ${heightClass}`}
                   >
-                    <img 
-                      src={image.url} 
+                    <img
+                      src={image.url}
                       alt={image.alt}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                     />
                   </div>
@@ -406,7 +416,7 @@ export function LandingPage() {
                   rel="noopener noreferrer"
                   className="aspect-square rounded-lg overflow-hidden opacity-80 hover:opacity-100 transition-opacity"
                 >
-                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  <img src={img.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 </a>
               ))}
             </div>

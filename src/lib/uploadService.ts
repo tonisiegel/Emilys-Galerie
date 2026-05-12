@@ -120,6 +120,72 @@ export function getImageDimensions(file: File): Promise<{ width: number; height:
   });
 }
 
+// Komprimiert ein Bild fürs Web (max. Breite + JPEG-Qualität).
+// Gibt ein neues File-Objekt zurück, das anstelle des Originals hochgeladen werden kann.
+// Bei PNG mit Transparenz: lieber das Original behalten — diese Funktion erzeugt JPEG.
+export async function compressImage(
+  file: File,
+  maxWidth: number = 2400,
+  quality: number = 0.85
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+
+      // Wenn schon klein genug und JPEG, einfach unverändert zurückgeben
+      if (width <= maxWidth && file.type === 'image/jpeg') {
+        resolve(file);
+        return;
+      }
+
+      // Auf maxWidth skalieren (Höhe proportional)
+      if (width > maxWidth) {
+        const ratio = maxWidth / width;
+        width = maxWidth;
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas-Kontext nicht verfügbar'));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Konvertierung fehlgeschlagen'));
+            return;
+          }
+          // Dateiname auf .jpg setzen, da wir zu JPEG konvertieren
+          const newName = file.name.replace(/\.[^.]+$/, '.jpg');
+          resolve(new File([blob], newName, { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Bild konnte nicht geladen werden'));
+    };
+
+    img.src = url;
+  });
+}
+
 // Create a thumbnail (client-side)
 export async function createThumbnail(
   file: File,

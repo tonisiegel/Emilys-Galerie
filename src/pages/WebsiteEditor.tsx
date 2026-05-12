@@ -24,7 +24,7 @@ import {
   ArrowUp, ArrowDown, Star
 } from 'lucide-react';
 import { getWebsiteContent, updateWebsiteContent } from '../lib/firestoreService';
-import { uploadPhoto } from '../lib/uploadService';
+import { uploadPhoto, compressImage } from '../lib/uploadService';
 
 // Types
 interface PortfolioImage {
@@ -352,11 +352,12 @@ export function WebsiteEditor() {
         });
       }
 
-      // Upload hero image if changed
+      // Upload hero image if changed (vorher komprimieren)
       let finalHeroImage = heroImage;
       if (section === 'hero' || !section) {
         if (heroImageFile) {
-          const result = await uploadPhoto(heroImageFile, 'website');
+          const compressed = await compressImage(heroImageFile, 2400, 0.85);
+          const result = await uploadPhoto(compressed, 'website');
           finalHeroImage = result.url;
           setHeroImageFile(null);
         }
@@ -367,11 +368,12 @@ export function WebsiteEditor() {
         });
       }
 
-      // Upload about image if changed
+      // Upload about image if changed (vorher komprimieren)
       let finalAboutImage = aboutImage;
       if (section === 'about' || !section) {
         if (aboutImageFile) {
-          const result = await uploadPhoto(aboutImageFile, 'website');
+          const compressed = await compressImage(aboutImageFile, 1600, 0.85);
+          const result = await uploadPhoto(compressed, 'website');
           finalAboutImage = result.url;
           setAboutImageFile(null);
         }
@@ -381,13 +383,14 @@ export function WebsiteEditor() {
         });
       }
 
-      // Upload new portfolio images
+      // Upload new portfolio images (vorher komprimieren)
       if (section === 'portfolio' || !section) {
         const updatedPortfolio: PortfolioImage[] = [];
         for (const img of portfolioImages) {
           const imgWithFile = img as PortfolioImage & { _file?: File };
           if (imgWithFile._file) {
-            const result = await uploadPhoto(imgWithFile._file, 'website');
+            const compressed = await compressImage(imgWithFile._file, 1600, 0.85);
+            const result = await uploadPhoto(compressed, 'website');
             updatedPortfolio.push({
               id: result.filename,
               url: result.url,
