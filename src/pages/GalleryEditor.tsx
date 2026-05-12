@@ -104,10 +104,10 @@ function SortablePhoto({ photo, onRemove, isCover, onToggleCover, coverIndex }: 
       {/* Cover Toggle Button */}
       <button
         onClick={() => onToggleCover(photo.id)}
-        className={`absolute bottom-1 left-1 w-6 h-6 rounded-full flex items-center justify-center
+        className={`absolute top-9 right-1 w-6 h-6 rounded-full flex items-center justify-center
                    transition-all ${
-                     isCover 
-                       ? 'bg-amber-400 text-amber-900' 
+                     isCover
+                       ? 'bg-amber-400 text-amber-900'
                        : 'bg-black/50 hover:bg-amber-400 hover:text-amber-900 text-white opacity-0 group-hover:opacity-100'
                    }`}
         title={isCover ? 'Aus Cover entfernen' : 'Als Cover verwenden'}
