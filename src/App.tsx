@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { LandingPage } from './pages/LandingPage';
+import { onAuthChange } from './lib/authService';
 
 // Alle anderen Seiten werden erst beim Aufrufen geladen — hält den
 // initialen JS-Bundle für die Landing Page schlank.
@@ -42,7 +43,21 @@ function PageLoader() {
 }
 
 // Protected Route wrapper
-function ProtectedRoute({ children, isLoggedIn }: { children: React.ReactNode; isLoggedIn: boolean }) {
+function ProtectedRoute({
+  children,
+  isLoggedIn,
+  authChecked,
+}: {
+  children: React.ReactNode;
+  isLoggedIn: boolean;
+  authChecked: boolean;
+}) {
+  // Solange Firebase noch nicht weiß, ob ein User da ist, warten wir.
+  // Sonst würden wir bei einem Reload kurz auf /admin/login springen
+  // und dann zurück — und das gespeicherte File-Upload würde scheitern.
+  if (!authChecked) {
+    return <PageLoader />;
+  }
   if (!isLoggedIn) {
     return <Navigate to="/admin/login" replace />;
   }
@@ -51,11 +66,15 @@ function ProtectedRoute({ children, isLoggedIn }: { children: React.ReactNode; i
 
 function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  // Check login state on mount
+  // Auf Firebase-Auth-State hören (übersteht Reloads via IndexedDB-Persistenz)
   useEffect(() => {
-    const loggedIn = localStorage.getItem('admin_logged_in') === 'true';
-    setIsAdminLoggedIn(loggedIn);
+    const unsubscribe = onAuthChange((user) => {
+      setIsAdminLoggedIn(!!user);
+      setAuthChecked(true);
+    });
+    return unsubscribe;
   }, []);
 
   return (
@@ -70,23 +89,27 @@ function App() {
           <Route
             path="/admin/login"
             element={
-              isAdminLoggedIn
-                ? <Navigate to="/admin" replace />
-                : <AdminLogin onLogin={() => setIsAdminLoggedIn(true)} />
+              !authChecked ? (
+                <PageLoader />
+              ) : isAdminLoggedIn ? (
+                <Navigate to="/admin" replace />
+              ) : (
+                <AdminLogin />
+              )
             }
           />
           <Route
             path="/admin"
             element={
-              <ProtectedRoute isLoggedIn={isAdminLoggedIn}>
-                <AdminDashboard onLogout={() => setIsAdminLoggedIn(false)} />
+              <ProtectedRoute isLoggedIn={isAdminLoggedIn} authChecked={authChecked}>
+                <AdminDashboard />
               </ProtectedRoute>
             }
           />
           <Route
             path="/admin/gallery/:id"
             element={
-              <ProtectedRoute isLoggedIn={isAdminLoggedIn}>
+              <ProtectedRoute isLoggedIn={isAdminLoggedIn} authChecked={authChecked}>
                 <GalleryEditor />
               </ProtectedRoute>
             }
@@ -94,7 +117,7 @@ function App() {
           <Route
             path="/admin/gallery/:id/markers"
             element={
-              <ProtectedRoute isLoggedIn={isAdminLoggedIn}>
+              <ProtectedRoute isLoggedIn={isAdminLoggedIn} authChecked={authChecked}>
                 <MarkersOverview />
               </ProtectedRoute>
             }
@@ -102,7 +125,7 @@ function App() {
           <Route
             path="/admin/website/:section"
             element={
-              <ProtectedRoute isLoggedIn={isAdminLoggedIn}>
+              <ProtectedRoute isLoggedIn={isAdminLoggedIn} authChecked={authChecked}>
                 <WebsiteEditor />
               </ProtectedRoute>
             }
@@ -110,7 +133,7 @@ function App() {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedRoute isLoggedIn={isAdminLoggedIn}>
+              <ProtectedRoute isLoggedIn={isAdminLoggedIn} authChecked={authChecked}>
                 <AdminSettings />
               </ProtectedRoute>
             }

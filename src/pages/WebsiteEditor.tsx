@@ -24,7 +24,7 @@ import {
   ArrowUp, ArrowDown, Star
 } from 'lucide-react';
 import { getWebsiteContent, updateWebsiteContent } from '../lib/firestoreService';
-import { uploadPhoto, compressImage } from '../lib/uploadService';
+import { uploadPhoto, compressImage, deleteR2FileByUrl } from '../lib/uploadService';
 
 // Types
 interface PortfolioImage {
@@ -167,6 +167,13 @@ export function WebsiteEditor() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Snapshot der bereits in Firestore gespeicherten Bild-URLs — gebraucht,
+  // um beim Save die nicht mehr referenzierten Files aus R2 zu löschen.
+  const [savedBrandLogoUrl, setSavedBrandLogoUrl] = useState('');
+  const [savedHeroImage, setSavedHeroImage] = useState('');
+  const [savedAboutImage, setSavedAboutImage] = useState('');
+  const [savedPortfolioUrls, setSavedPortfolioUrls] = useState<string[]>([]);
+
   // Load content from Firebase
   useEffect(() => {
     async function loadContent() {
@@ -176,18 +183,22 @@ export function WebsiteEditor() {
           if (content.branding) {
             setBrandName(content.branding.name || "");
             setBrandLogoUrl(content.branding.logoUrl || "");
+            setSavedBrandLogoUrl(content.branding.logoUrl || "");
           }
           if (content.hero) {
             setHeroTitle(content.hero.title || "");
             setHeroSubtitle(content.hero.subtitle || "");
             setHeroImage(content.hero.backgroundImage || "");
+            setSavedHeroImage(content.hero.backgroundImage || "");
           }
           if (content.about) {
             setAboutText(content.about.text || "");
             setAboutImage(content.about.image || "");
+            setSavedAboutImage(content.about.image || "");
           }
           if (content.portfolio) {
             setPortfolioImages(content.portfolio);
+            setSavedPortfolioUrls(content.portfolio.map((p) => p.url));
           }
           if (content.faq) {
             setFaqs(content.faq);
@@ -337,7 +348,7 @@ export function WebsiteEditor() {
     setSaving(true);
 
     try {
-      // Branding: Logo hochladen falls neu
+      // Branding: Logo hochladen falls neu, altes löschen falls ersetzt/entfernt
       if (section === 'branding' || !section) {
         let finalLogoUrl = brandLogoUrl;
         if (brandLogoFile) {
@@ -346,10 +357,15 @@ export function WebsiteEditor() {
           setBrandLogoFile(null);
           setBrandLogoUrl(finalLogoUrl);
         }
+        // Wenn Logo-URL sich geändert hat (neu hochgeladen ODER gelöscht), alte aus R2 weg
+        if (savedBrandLogoUrl && savedBrandLogoUrl !== finalLogoUrl) {
+          deleteR2FileByUrl(savedBrandLogoUrl);
+        }
         await updateWebsiteContent('branding', {
           name: brandName,
           logoUrl: finalLogoUrl
         });
+        setSavedBrandLogoUrl(finalLogoUrl);
       }
 
       // Upload hero image if changed (Full HD reicht — niemand sieht das größer)
@@ -361,11 +377,15 @@ export function WebsiteEditor() {
           finalHeroImage = result.url;
           setHeroImageFile(null);
         }
+        if (savedHeroImage && savedHeroImage !== finalHeroImage) {
+          deleteR2FileByUrl(savedHeroImage);
+        }
         await updateWebsiteContent('hero', {
           title: heroTitle,
           subtitle: heroSubtitle,
           backgroundImage: finalHeroImage
         });
+        setSavedHeroImage(finalHeroImage);
       }
 
       // Upload about image if changed (Profilbild, eher klein dargestellt)
@@ -377,10 +397,14 @@ export function WebsiteEditor() {
           finalAboutImage = result.url;
           setAboutImageFile(null);
         }
+        if (savedAboutImage && savedAboutImage !== finalAboutImage) {
+          deleteR2FileByUrl(savedAboutImage);
+        }
         await updateWebsiteContent('about', {
           text: aboutText,
           image: finalAboutImage
         });
+        setSavedAboutImage(finalAboutImage);
       }
 
       // Upload new portfolio images (Grid-Anzeige, max 3 Spalten — 1000 px reicht)
@@ -402,7 +426,14 @@ export function WebsiteEditor() {
           }
         }
         setPortfolioImages(updatedPortfolio);
+
+        // Portfolio-Diff: was vorher gespeichert war und jetzt nicht mehr ist → aus R2 löschen
+        const newPortfolioUrls = updatedPortfolio.map((p) => p.url);
+        const removedUrls = savedPortfolioUrls.filter((url) => !newPortfolioUrls.includes(url));
+        removedUrls.forEach((url) => deleteR2FileByUrl(url));
+
         await updateWebsiteContent('portfolio', updatedPortfolio);
+        setSavedPortfolioUrls(newPortfolioUrls);
       }
 
       if (section === 'faq' || !section) {

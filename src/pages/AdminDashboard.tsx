@@ -10,13 +10,9 @@ import {
   ImageIcon, ChevronRight, Settings, Tag, HelpCircle, Star
 } from 'lucide-react';
 
-interface AdminDashboardProps {
-  onLogout: () => void;
-}
-
 type Tab = 'website' | 'galleries';
 
-export function AdminDashboard({ onLogout }: AdminDashboardProps) {
+export function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('website');
   const [galleries, setGalleries] = useState<Gallery[]>([]);
@@ -55,8 +51,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   async function handleLogout() {
     try {
       await signOut();
-      localStorage.removeItem('admin_logged_in');
-      onLogout();
+      // App.tsx hört via onAuthChange und schaltet isAdminLoggedIn auf false
       navigate('/admin/login');
     } catch (error) {
       console.error('Logout error:', error);

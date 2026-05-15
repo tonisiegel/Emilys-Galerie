@@ -87,16 +87,34 @@ export async function deletePhotoFile(
 ): Promise<void> {
   const path = `galleries/${galleryId}/${filename}`;
   const token = await getAuthToken();
-  
+
   const response = await fetch(`${WORKER_URL}/${path}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
     },
   });
-  
+
   if (!response.ok) {
     throw new Error(`Delete failed: ${response.status}`);
+  }
+}
+
+// Komfort-Wrapper: löscht ein File anhand der vollständigen R2-URL.
+// Schluckt Fehler bewusst — wenn das alte File nicht (mehr) existiert,
+// darf der Save trotzdem durchgehen.
+export async function deleteR2FileByUrl(url: string | undefined | null): Promise<void> {
+  if (!url) return;
+  try {
+    const u = new URL(url);
+    // URL-Format: https://<worker>/galleries/<galleryId>/<filename>
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length < 3 || parts[0] !== 'galleries') return;
+    const galleryId = parts[1];
+    const filename = parts.slice(2).join('/'); // falls Pfad mal Unterordner enthält
+    await deletePhotoFile(galleryId, filename);
+  } catch (err) {
+    console.warn('Konnte altes R2-File nicht löschen:', url, err);
   }
 }
 

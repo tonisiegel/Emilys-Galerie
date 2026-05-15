@@ -3,11 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Camera, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { signIn } from '../lib/authService';
 
-interface AdminLoginProps {
-  onLogin: () => void;
-}
-
-export function AdminLogin({ onLogin }: AdminLoginProps) {
+export function AdminLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,8 +17,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
 
     try {
       await signIn(email, password);
-      localStorage.setItem('admin_logged_in', 'true');
-      onLogin();
+      // App.tsx hört via onAuthChange auf Firebase und routet selbständig nach /admin
       navigate('/admin');
     } catch (err: unknown) {
       console.error('Login error:', err);
