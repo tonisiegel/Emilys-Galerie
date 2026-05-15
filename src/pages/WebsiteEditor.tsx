@@ -352,11 +352,11 @@ export function WebsiteEditor() {
         });
       }
 
-      // Upload hero image if changed (vorher komprimieren)
+      // Upload hero image if changed (Full HD reicht — niemand sieht das größer)
       let finalHeroImage = heroImage;
       if (section === 'hero' || !section) {
         if (heroImageFile) {
-          const compressed = await compressImage(heroImageFile, 2400, 0.85);
+          const compressed = await compressImage(heroImageFile, 1920, 0.80);
           const result = await uploadPhoto(compressed, 'website');
           finalHeroImage = result.url;
           setHeroImageFile(null);
@@ -368,11 +368,11 @@ export function WebsiteEditor() {
         });
       }
 
-      // Upload about image if changed (vorher komprimieren)
+      // Upload about image if changed (Profilbild, eher klein dargestellt)
       let finalAboutImage = aboutImage;
       if (section === 'about' || !section) {
         if (aboutImageFile) {
-          const compressed = await compressImage(aboutImageFile, 1600, 0.85);
+          const compressed = await compressImage(aboutImageFile, 1000, 0.80);
           const result = await uploadPhoto(compressed, 'website');
           finalAboutImage = result.url;
           setAboutImageFile(null);
@@ -383,13 +383,13 @@ export function WebsiteEditor() {
         });
       }
 
-      // Upload new portfolio images (vorher komprimieren)
+      // Upload new portfolio images (Grid-Anzeige, max 3 Spalten — 1000 px reicht)
       if (section === 'portfolio' || !section) {
         const updatedPortfolio: PortfolioImage[] = [];
         for (const img of portfolioImages) {
           const imgWithFile = img as PortfolioImage & { _file?: File };
           if (imgWithFile._file) {
-            const compressed = await compressImage(imgWithFile._file, 1600, 0.85);
+            const compressed = await compressImage(imgWithFile._file, 1000, 0.80);
             const result = await uploadPhoto(compressed, 'website');
             updatedPortfolio.push({
               id: result.filename,

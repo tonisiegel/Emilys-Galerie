@@ -120,9 +120,9 @@ export function getImageDimensions(file: File): Promise<{ width: number; height:
   });
 }
 
-// Komprimiert ein Bild fürs Web (max. Breite + JPEG-Qualität).
-// Gibt ein neues File-Objekt zurück, das anstelle des Originals hochgeladen werden kann.
-// Bei PNG mit Transparenz: lieber das Original behalten — diese Funktion erzeugt JPEG.
+// Komprimiert ein Bild fürs Web: skaliert auf maxWidth und encodet als JPEG.
+// Das Re-Encoding via Canvas entfernt automatisch alle EXIF-Metadaten
+// (GPS, Kamera-Modell, Datum etc.) — wichtig für die Privatsphäre.
 export async function compressImage(
   file: File,
   maxWidth: number = 2400,
@@ -137,13 +137,8 @@ export async function compressImage(
 
       let { width, height } = img;
 
-      // Wenn schon klein genug und JPEG, einfach unverändert zurückgeben
-      if (width <= maxWidth && file.type === 'image/jpeg') {
-        resolve(file);
-        return;
-      }
-
-      // Auf maxWidth skalieren (Höhe proportional)
+      // Auf maxWidth skalieren (Höhe proportional). Wenn Bild bereits kleiner ist,
+      // bleiben Originalmaße — wir gehen aber trotzdem durchs Canvas, damit EXIF weg ist.
       if (width > maxWidth) {
         const ratio = maxWidth / width;
         width = maxWidth;

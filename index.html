@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#5f755f" />
     <meta name="description" content="Emily's Galerie - Deine persönlichen Fotogalerien" />
+
+    <!-- Verbindung zu R2 (Fotos) und Firestore (Inhalte) früh aufbauen, spart DNS+TLS -->
+    <link rel="preconnect" href="https://emilys-galerie-api.emilys-galerie.workers.dev" crossorigin />
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+
     <title>Emily's Galerie</title>
   </head>
   <body>
