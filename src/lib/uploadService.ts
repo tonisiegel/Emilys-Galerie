@@ -199,6 +199,81 @@ export async function compressImage(
   });
 }
 
+// Brennt ein diagonales, halb-transparentes Wasserzeichen permanent ins Bild.
+// Behält die Original-Auflösung, encodet als JPEG mit hoher Qualität.
+// Ist `text` leer, gibt die Funktion das Original zurück (kein No-Op-Rendern).
+export async function applyWatermark(
+  file: File,
+  text: string,
+  quality: number = 0.9
+): Promise<File> {
+  if (!text || !text.trim()) return file;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas-Kontext nicht verfügbar'));
+        return;
+      }
+
+      // Original-Bild zeichnen
+      ctx.drawImage(img, 0, 0);
+
+      // Wasserzeichen darüber legen — diagonal, mittig, halb-transparent
+      const minSide = Math.min(canvas.width, canvas.height);
+      const fontSize = Math.round(minSide * 0.07); // ~7 % der kürzeren Seite
+
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((-28 * Math.PI) / 180);
+      ctx.font = `600 ${fontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Dunkler Schatten/Kontur, damit der Text auf hellen wie dunklen
+      // Bildbereichen lesbar bleibt
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.lineWidth = Math.max(2, fontSize / 18);
+      ctx.strokeText(text, 0, 0);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+      ctx.fillText(text, 0, 0);
+
+      ctx.restore();
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Wasserzeichen-Konvertierung fehlgeschlagen'));
+            return;
+          }
+          const newName = file.name.replace(/\.[^.]+$/, '.jpg');
+          resolve(new File([blob], newName, { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Bild konnte nicht geladen werden'));
+    };
+
+    img.src = url;
+  });
+}
+
 // Create a thumbnail (client-side)
 export async function createThumbnail(
   file: File,

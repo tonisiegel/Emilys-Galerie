@@ -19,16 +19,17 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Photo, MarkerColor } from '../types';
-import { 
-  getGallery, 
-  getGalleryPhotos, 
-  createGallery, 
+import {
+  getGallery,
+  getGalleryPhotos,
+  createGallery,
   updateGallery,
   addPhoto as addPhotoToFirestore,
   deletePhoto as deletePhotoFromFirestore,
-  updatePhotoOrder
+  updatePhotoOrder,
+  getWebsiteContent,
 } from '../lib/firestoreService';
-import { uploadPhoto, deletePhotoFile } from '../lib/uploadService';
+import { uploadPhoto, deletePhotoFile, applyWatermark } from '../lib/uploadService';
 import {
   Camera, ArrowLeft, Save, Upload, X,
   Image, Loader2, Check, AlertCircle, Eye,
@@ -174,6 +175,20 @@ export function GalleryEditor() {
   const [_slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
+  // Wasserzeichen-Text aus dem Website-Branding — wird beim Mount geladen
+  // und bei jedem Galerie-Upload aufs Bild gerendert. Fallback sorgt dafür,
+  // dass Bilder auch geschützt sind, wenn der Branding-Name (noch) leer ist.
+  const WATERMARK_FALLBACK = 'emilykleinfotografie';
+  const [watermarkText, setWatermarkText] = useState(WATERMARK_FALLBACK);
+  useEffect(() => {
+    getWebsiteContent()
+      .then((content) => {
+        const name = content?.branding?.name?.trim();
+        setWatermarkText(name && name.length > 0 ? name : WATERMARK_FALLBACK);
+      })
+      .catch((err) => console.warn('Konnte Branding für Wasserzeichen nicht laden:', err));
+  }, []);
+
   // DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -265,16 +280,20 @@ export function GalleryEditor() {
 
     for (const file of imageFiles) {
       try {
+        // Wasserzeichen permanent einbrennen (auch EXIF wird entfernt)
+        const watermarked = await applyWatermark(file, watermarkText);
+
         // Upload to R2 via Worker
         const result = await uploadPhoto(
-          file,
+          watermarked,
           galleryId!,
           (progress) => {
             setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
           }
         );
 
-        // Save photo metadata to Firestore
+        // Save photo metadata to Firestore — originalName behält den ursprünglichen
+        // Datei-Namen für den Download, alles andere kommt vom verarbeiteten File
         const photoId = await addPhotoToFirestore({
           galleryId: galleryId!,
           filename: result.filename,
