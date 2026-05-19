@@ -199,16 +199,15 @@ export async function compressImage(
   });
 }
 
-// Brennt ein diagonales, halb-transparentes Wasserzeichen permanent ins Bild.
-// Behält die Original-Auflösung, encodet als JPEG mit hoher Qualität.
-// Ist `text` leer, gibt die Funktion das Original zurück (kein No-Op-Rendern).
-export async function applyWatermark(
+// Erzeugt in einem einzigen Canvas-Pass eine kleinere Vorschau mit Wasserzeichen.
+// Resize + Watermark + JPEG-Encode kombiniert — vermeidet doppelten JPEG-Re-Encode
+// und behält dadurch bessere Qualität bei kleinerer Dateigröße.
+export async function createWatermarkedPreview(
   file: File,
-  text: string,
-  quality: number = 0.9
+  watermarkText: string,
+  maxWidth: number = 1600,
+  quality: number = 0.80
 ): Promise<File> {
-  if (!text || !text.trim()) return file;
-
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -216,9 +215,16 @@ export async function applyWatermark(
     img.onload = () => {
       URL.revokeObjectURL(url);
 
+      let { width, height } = img;
+      if (width > maxWidth) {
+        const ratio = maxWidth / width;
+        width = maxWidth;
+        height = Math.round(height * ratio);
+      }
+
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = width;
+      canvas.height = height;
 
       const ctx = canvas.getContext('2d');
       if (!ctx) {
@@ -226,38 +232,39 @@ export async function applyWatermark(
         return;
       }
 
-      // Original-Bild zeichnen
-      ctx.drawImage(img, 0, 0);
+      // Bild zeichnen (skaliert)
+      ctx.drawImage(img, 0, 0, width, height);
 
-      // Wasserzeichen darüber legen — diagonal, mittig, halb-transparent
-      const minSide = Math.min(canvas.width, canvas.height);
-      const fontSize = Math.round(minSide * 0.07); // ~7 % der kürzeren Seite
+      // Wasserzeichen rendern — nur wenn Text vorhanden
+      if (watermarkText && watermarkText.trim()) {
+        const minSide = Math.min(width, height);
+        const fontSize = Math.round(minSide * 0.07);
 
-      ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((-28 * Math.PI) / 180);
-      ctx.font = `600 ${fontSize}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.rotate((-28 * Math.PI) / 180);
+        ctx.font = `600 ${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
 
-      // Dunkler Schatten/Kontur, damit der Text auf hellen wie dunklen
-      // Bildbereichen lesbar bleibt
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-      ctx.lineWidth = Math.max(2, fontSize / 18);
-      ctx.strokeText(text, 0, 0);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.lineWidth = Math.max(2, fontSize / 18);
+        ctx.strokeText(watermarkText, 0, 0);
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
-      ctx.fillText(text, 0, 0);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+        ctx.fillText(watermarkText, 0, 0);
 
-      ctx.restore();
+        ctx.restore();
+      }
 
       canvas.toBlob(
         (blob) => {
           if (!blob) {
-            reject(new Error('Wasserzeichen-Konvertierung fehlgeschlagen'));
+            reject(new Error('Wasserzeichen-Preview konnte nicht erstellt werden'));
             return;
           }
-          const newName = file.name.replace(/\.[^.]+$/, '.jpg');
+          const baseName = file.name.replace(/\.[^.]+$/, '');
+          const newName = `${baseName}_wm.jpg`;
           resolve(new File([blob], newName, { type: 'image/jpeg' }));
         },
         'image/jpeg',

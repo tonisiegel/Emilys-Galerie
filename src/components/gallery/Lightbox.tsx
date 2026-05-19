@@ -130,11 +130,12 @@ export function Lightbox({
           </button>
         )}
 
-        {/* Image */}
+        {/* Image — Anzeige nutzt Wasserzeichen-Vorschau wenn vorhanden, Download bleibt Original */}
         <img
-          src={photo.url}
+          src={photo.watermarkUrl || photo.url}
           alt={photo.originalName}
           className="max-h-full max-w-full object-contain"
+          decoding="async"
         />
 
         {/* Next button */}

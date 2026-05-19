@@ -46,6 +46,8 @@ interface Review {
   text: string;
   rating: number;
   date: string;
+  image?: string;
+  _file?: File; // lokal, nur bis zum Speichern
 }
 
 // Sortable Portfolio Image
@@ -173,6 +175,7 @@ export function WebsiteEditor() {
   const [savedHeroImage, setSavedHeroImage] = useState('');
   const [savedAboutImage, setSavedAboutImage] = useState('');
   const [savedPortfolioUrls, setSavedPortfolioUrls] = useState<string[]>([]);
+  const [savedReviewImages, setSavedReviewImages] = useState<string[]>([]);
 
   // Load content from Firebase
   useEffect(() => {
@@ -205,6 +208,11 @@ export function WebsiteEditor() {
           }
           if (content.reviews) {
             setReviews(content.reviews);
+            setSavedReviewImages(
+              content.reviews
+                .map((r) => r.image)
+                .filter((url): url is string => Boolean(url))
+            );
           }
           if (content.contact) {
             setContactEmail(content.contact.email || "");
@@ -332,6 +340,22 @@ export function WebsiteEditor() {
     setReviews(prev => prev.filter(r => r.id !== id));
   }
 
+  function setReviewImage(id: string, file: File) {
+    setReviews(prev => prev.map(r => r.id === id ? {
+      ...r,
+      _file: file,
+      image: URL.createObjectURL(file),
+    } : r));
+  }
+
+  function clearReviewImage(id: string) {
+    setReviews(prev => prev.map(r => r.id === id ? {
+      ...r,
+      _file: undefined,
+      image: undefined,
+    } : r));
+  }
+
   function moveReview(id: string, direction: -1 | 1) {
     setReviews(prev => {
       const idx = prev.findIndex(r => r.id === id);
@@ -441,7 +465,39 @@ export function WebsiteEditor() {
       }
 
       if (section === 'reviews' || !section) {
-        await updateWebsiteContent('reviews', reviews);
+        // Neue Avatar-Bilder hochladen (komprimiert, klein — Avatar ist max ~120 px sichtbar)
+        const updatedReviews: Review[] = [];
+        for (const r of reviews) {
+          if (r._file) {
+            const compressed = await compressImage(r._file, 400, 0.85);
+            const result = await uploadPhoto(compressed, 'website');
+            updatedReviews.push({
+              id: r.id,
+              name: r.name,
+              text: r.text,
+              rating: r.rating,
+              date: r.date,
+              image: result.url,
+            });
+          } else {
+            const { _file: _unused, ...clean } = r;
+            void _unused;
+            updatedReviews.push(clean);
+          }
+        }
+        setReviews(updatedReviews);
+
+        // Diff: alte Review-Bilder, die nicht mehr da sind → aus R2 löschen
+        const newReviewImages = updatedReviews
+          .map((r) => r.image)
+          .filter((url): url is string => Boolean(url));
+        const removedReviewImages = savedReviewImages.filter(
+          (url) => !newReviewImages.includes(url)
+        );
+        removedReviewImages.forEach((url) => deleteR2FileByUrl(url));
+
+        await updateWebsiteContent('reviews', updatedReviews);
+        setSavedReviewImages(newReviewImages);
       }
 
       if (section === 'contact' || !section) {
@@ -849,6 +905,54 @@ export function WebsiteEditor() {
                     </div>
 
                     <div className="space-y-3">
+                      {/* Avatar-Bild (optional) */}
+                      <div>
+                        <label className="block text-sm font-medium text-sage-700 mb-1.5">
+                          Bild (optional)
+                        </label>
+                        <div className="flex items-center gap-3">
+                          {review.image ? (
+                            <img
+                              src={review.image}
+                              alt={review.name}
+                              className="w-16 h-16 rounded-lg object-cover border border-sand-200"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-lg bg-sand-100 text-sage-500 flex items-center justify-center text-sm border border-dashed border-sand-300">
+                              kein Bild
+                            </div>
+                          )}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="btn-secondary text-sm cursor-pointer inline-flex items-center gap-2">
+                              <Upload className="w-4 h-4" />
+                              Bild auswählen
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) setReviewImage(review.id, file);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                            {review.image && (
+                              <button
+                                type="button"
+                                onClick={() => clearReviewImage(review.id)}
+                                className="text-xs text-sage-500 hover:text-rose-500 text-left"
+                              >
+                                Bild entfernen
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-sage-400 mt-1.5">
+                          Wenn kein Bild gesetzt ist, werden die Initialen angezeigt.
+                        </p>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-sm font-medium text-sage-700 mb-1.5">Name</label>

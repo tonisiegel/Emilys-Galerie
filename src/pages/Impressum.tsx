@@ -18,22 +18,22 @@ export function Impressum() {
         <div className="prose prose-sage">
           <h2 className="text-xl font-medium text-sage-700 mt-6 mb-3">Angaben gemäß § 5 TMG</h2>
           <p className="text-sage-600">
-            [VORNAME NACHNAME]<br />
-            [STRASSE HAUSNUMMER]<br />
-            [PLZ ORT]
+            Emily Klein<br />
+            Bockauer Straße 9<br />
+            08309 Eibenstock
           </p>
 
           <h2 className="text-xl font-medium text-sage-700 mt-6 mb-3">Kontakt</h2>
           <p className="text-sage-600">
-            E-Mail: [EMAIL-ADRESSE]<br />
-            Telefon: [TELEFONNUMMER] (optional)
+            E-Mail: <a href="mailto:emilykleinfotografie@gmail.com" className="text-sage-700 underline">emilykleinfotografie@gmail.com</a><br />
+            Telefon: <a href="tel:+4917653301199" className="text-sage-700 underline">+49 176 53301199</a>
           </p>
 
-          <h2 className="text-xl font-medium text-sage-700 mt-6 mb-3">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+          <h2 className="text-xl font-medium text-sage-700 mt-6 mb-3">Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
           <p className="text-sage-600">
-            [VORNAME NACHNAME]<br />
-            [STRASSE HAUSNUMMER]<br />
-            [PLZ ORT]
+            Emily Klein<br />
+            Bockauer Straße 9<br />
+            08309 Eibenstock
           </p>
 
           <h2 className="text-xl font-medium text-sage-700 mt-6 mb-3">Streitschlichtung</h2>

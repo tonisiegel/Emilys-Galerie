@@ -115,12 +115,13 @@ export function PhotoGrid({
               handlePhotoClick(photo);
             }}
           >
-            {/* Photo */}
+            {/* Photo — Wasserzeichen-Vorschau bevorzugen, sonst Thumbnail, sonst Original */}
             <img
-              src={photo.thumbnailUrl || photo.url}
+              src={photo.watermarkUrl || photo.thumbnailUrl || photo.url}
               alt={photo.originalName}
               className="w-full h-full object-cover"
               loading="lazy"
+              decoding="async"
             />
 
             {/* Bookmark Marker - wenn gesetzt und Menu nicht offen */}

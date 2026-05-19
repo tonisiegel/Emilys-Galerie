@@ -1,18 +1,19 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
   where,
   orderBy,
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { deletePhotoFile, deleteR2FileByUrl } from './uploadService';
 import type { Gallery, Photo, MarkerColor } from '../types';
 
 // ============ GALLERIES ============
@@ -85,13 +86,28 @@ export async function updateGallery(id: string, updates: Partial<Gallery>): Prom
 }
 
 export async function deleteGallery(id: string): Promise<void> {
-  // First delete all photos in the gallery
+  // Erst alle Fotos räumen — sowohl die Dateien im R2-Bucket als auch
+  // die Firestore-Einträge. Wenn ein einzelner Schritt fehlschlägt
+  // (z.B. R2-File schon weg), trotzdem mit den anderen weitermachen.
   const photos = await getGalleryPhotos(id);
   for (const photo of photos) {
-    await deletePhoto(photo.id);
+    try {
+      await deletePhotoFile(photo.galleryId, photo.filename);
+    } catch (err) {
+      console.warn('R2: Original konnte nicht gelöscht werden', photo.filename, err);
+    }
+    if (photo.watermarkUrl) {
+      // schluckt Fehler intern
+      deleteR2FileByUrl(photo.watermarkUrl);
+    }
+    try {
+      await deletePhoto(photo.id);
+    } catch (err) {
+      console.warn('Firestore: Photo-Doc konnte nicht gelöscht werden', photo.id, err);
+    }
   }
-  
-  // Then delete the gallery itself
+
+  // Galerie-Doc selbst löschen
   const docRef = doc(db, 'galleries', id);
   await deleteDoc(docRef);
 }
@@ -271,6 +287,7 @@ interface WebsiteContent {
     text: string;
     rating: number;
     date: string;
+    image?: string; // optionales Avatar-Bild, sonst Initialen-Fallback
   }>;
   contact: {
     email: string;

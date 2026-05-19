@@ -29,7 +29,7 @@ import {
   updatePhotoOrder,
   getWebsiteContent,
 } from '../lib/firestoreService';
-import { uploadPhoto, deletePhotoFile, applyWatermark } from '../lib/uploadService';
+import { uploadPhoto, deletePhotoFile, createWatermarkedPreview, deleteR2FileByUrl } from '../lib/uploadService';
 import {
   Camera, ArrowLeft, Save, Upload, X,
   Image, Loader2, Check, AlertCircle, Eye,
@@ -162,6 +162,7 @@ export function GalleryEditor() {
   const [allowMarking, setAllowMarking] = useState(true);
   const [availableMarkers, setAvailableMarkers] = useState<MarkerColor[]>(['green', 'yellow']);
   const [coverPhotoIds, setCoverPhotoIds] = useState<string[]>([]);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   
   // Photos state
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -220,6 +221,7 @@ export function GalleryEditor() {
         setAllowMarking(gallery.allowMarking);
         setAvailableMarkers(gallery.availableMarkers);
         setCoverPhotoIds(gallery.coverPhotoIds || []);
+        setWatermarkEnabled(gallery.watermarkEnabled !== false); // Default: an
         setSlugManuallyEdited(true);
 
         const photosData = await getGalleryPhotos(gallery.id);
@@ -263,6 +265,7 @@ export function GalleryEditor() {
           allowMarking,
           availableMarkers,
           coverPhotoIds: [],
+          watermarkEnabled,
           photoCount: 0,
           totalSize: 0,
           isPublic: true,
@@ -280,25 +283,36 @@ export function GalleryEditor() {
 
     for (const file of imageFiles) {
       try {
-        // Wasserzeichen permanent einbrennen (auch EXIF wird entfernt)
-        const watermarked = await applyWatermark(file, watermarkText);
-
-        // Upload to R2 via Worker
+        // Schritt 1: Original immer hochladen — Kunden bekommen beim Download
+        // unverändert das hochgeladene Bild.
         const result = await uploadPhoto(
-          watermarked,
+          file,
           galleryId!,
           (progress) => {
             setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
           }
         );
 
-        // Save photo metadata to Firestore — originalName behält den ursprünglichen
-        // Datei-Namen für den Download, alles andere kommt vom verarbeiteten File
+        // Schritt 2: Wenn Wasserzeichen-Toggle an ist, zusätzlich eine kleine
+        // WZ-Vorschau erzeugen und hochladen. Galerie-Anzeige nutzt diese.
+        let watermarkUrl: string | undefined;
+        if (watermarkEnabled) {
+          try {
+            const preview = await createWatermarkedPreview(file, watermarkText, 1600, 0.80);
+            const wmResult = await uploadPhoto(preview, galleryId!);
+            watermarkUrl = wmResult.url;
+          } catch (wmErr) {
+            console.warn(`Wasserzeichen-Preview für ${file.name} fehlgeschlagen — nur Original verfügbar:`, wmErr);
+          }
+        }
+
+        // Save photo metadata to Firestore
         const photoId = await addPhotoToFirestore({
           galleryId: galleryId!,
           filename: result.filename,
           originalName: file.name,
           url: result.url,
+          ...(watermarkUrl ? { watermarkUrl } : {}),
           width: result.width,
           height: result.height,
           size: result.size,
@@ -312,6 +326,7 @@ export function GalleryEditor() {
           filename: result.filename,
           originalName: file.name,
           url: result.url,
+          watermarkUrl,
           width: result.width,
           height: result.height,
           size: result.size,
@@ -349,9 +364,13 @@ export function GalleryEditor() {
     if (!photo) return;
 
     try {
-      // Delete from R2
+      // Original aus R2 löschen
       await deletePhotoFile(photo.galleryId, photo.filename);
-      // Delete from Firestore
+      // Wasserzeichen-Vorschau aus R2 löschen, falls vorhanden
+      if (photo.watermarkUrl) {
+        deleteR2FileByUrl(photo.watermarkUrl);
+      }
+      // Aus Firestore entfernen
       await deletePhotoFromFirestore(photoId);
     } catch (err) {
       console.error('Failed to delete photo:', err);
@@ -438,6 +457,7 @@ export function GalleryEditor() {
         allowMarking,
         availableMarkers,
         coverPhotoIds,
+        watermarkEnabled,
         photoCount: photos.length,
         totalSize: photos.reduce((sum, p) => sum + (p.size || 0), 0),
         isPublic: true,
@@ -687,6 +707,35 @@ export function GalleryEditor() {
                     className={`
                       absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform
                       ${allowMarking ? 'translate-x-6' : ''}
+                    `}
+                  />
+                </button>
+              </label>
+
+              {/* Watermark Toggle */}
+              <label className="flex items-center justify-between cursor-pointer gap-4">
+                <div>
+                  <span className="font-medium text-sage-700">
+                    Wasserzeichen in der Vorschau{' '}
+                    <span className="text-xs text-sage-400 font-normal">(empfohlen)</span>
+                  </span>
+                  <p className="text-sm text-sage-500">
+                    Besucher sehen deine Fotos mit Wasserzeichen — beim Download bekommen deine Kund:innen
+                    trotzdem das Original ohne Wasserzeichen. Wirkt nur für neue Uploads nach dem Speichern.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWatermarkEnabled(!watermarkEnabled)}
+                  className={`
+                    relative w-12 h-6 rounded-full transition-colors flex-shrink-0
+                    ${watermarkEnabled ? 'bg-sage-500' : 'bg-sand-300'}
+                  `}
+                >
+                  <span
+                    className={`
+                      absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform
+                      ${watermarkEnabled ? 'translate-x-6' : ''}
                     `}
                   />
                 </button>

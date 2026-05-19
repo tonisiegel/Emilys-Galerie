@@ -30,7 +30,8 @@ export interface Photo {
   galleryId: string;
   filename: string;
   originalName: string;
-  url: string;
+  url: string; // Original — wird beim Download geliefert
+  watermarkUrl?: string; // verkleinerte Version mit Wasserzeichen, für die Anzeige
   thumbnailUrl?: string;
   width: number;
   height: number;
@@ -53,6 +54,7 @@ export interface Gallery {
   allowDownload: boolean;
   allowMarking: boolean;
   availableMarkers: MarkerColor[];
+  watermarkEnabled?: boolean; // wenn true (Default), wird beim Upload ein WZ aufs Bild gerendert
   createdAt: Date;
   updatedAt: Date;
   expiresAt?: Date;

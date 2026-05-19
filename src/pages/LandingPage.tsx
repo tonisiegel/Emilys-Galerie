@@ -39,6 +39,16 @@ interface Review {
   text: string;
   rating: number;
   date: string;
+  image?: string;
+}
+
+// Initialen aus dem Namen ableiten — erstes Wort + letztes Wort, Sonderzeichen wie & ignorieren
+function getInitials(name: string): string {
+  const cleaned = name.replace(/[^\p{L}\s]/gu, ' ').trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
 interface ContactContent {
@@ -357,11 +367,26 @@ export function LandingPage() {
                   <p className="text-sage-600 leading-relaxed mb-4 flex-1 italic">
                     „{review.text}"
                   </p>
-                  <div className="border-t border-sand-100 pt-3">
-                    <p className="font-medium text-sage-800">{review.name}</p>
-                    {review.date && (
-                      <p className="text-sm text-sage-400">{review.date}</p>
+                  <div className="flex items-center gap-3 border-t border-sand-100 pt-3">
+                    {review.image ? (
+                      <img
+                        src={review.image}
+                        alt={review.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-sage-100 text-sage-700 flex items-center justify-center font-medium text-sm flex-shrink-0">
+                        {getInitials(review.name)}
+                      </div>
                     )}
+                    <div className="min-w-0">
+                      <p className="font-medium text-sage-800 truncate">{review.name}</p>
+                      {review.date && (
+                        <p className="text-sm text-sage-400 truncate">{review.date}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
