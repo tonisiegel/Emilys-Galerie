@@ -58,23 +58,30 @@ export function GalleryHeader({
         </div>
 
         {gallery.allowDownload && (
-          <div className="flex items-center gap-3">
-            {selectedCount > 0 && (
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-3">
+              {selectedCount > 0 && (
+                <button
+                  onClick={onDownloadSelected}
+                  className="btn-secondary flex items-center gap-2 text-sm"
+                  title="Ausgewählte Fotos in Originalqualität herunterladen"
+                >
+                  <Download className="w-4 h-4" />
+                  {selectedCount} ausgewählte
+                </button>
+              )}
               <button
-                onClick={onDownloadSelected}
-                className="btn-secondary flex items-center gap-2 text-sm"
+                onClick={onDownloadAll}
+                className="btn-primary flex items-center gap-2 text-sm"
+                title="Alle Fotos in Originalqualität herunterladen"
               >
                 <Download className="w-4 h-4" />
-                {selectedCount} ausgewählte
+                Alle herunterladen
               </button>
-            )}
-            <button
-              onClick={onDownloadAll}
-              className="btn-primary flex items-center gap-2 text-sm"
-            >
-              <Download className="w-4 h-4" />
-              Alle herunterladen
-            </button>
+            </div>
+            <p className="text-xs text-sage-500">
+              Fotos werden in Originalqualität heruntergeladen
+            </p>
           </div>
         )}
       </div>
