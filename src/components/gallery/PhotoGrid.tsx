@@ -8,6 +8,7 @@ interface PhotoGridProps {
   allowDownload: boolean;
   availableMarkers: MarkerColor[];
   visitorId: string;
+  watermarkEnabled: boolean; // wenn false, Original direkt anzeigen
   onPhotoClick: (photo: Photo) => void;
   onToggleMarker: (photoId: string, color: MarkerColor) => void;
 }
@@ -52,6 +53,7 @@ export function PhotoGrid({
   allowDownload,
   availableMarkers,
   visitorId,
+  watermarkEnabled,
   onPhotoClick,
   onToggleMarker,
 }: PhotoGridProps) {
@@ -115,9 +117,13 @@ export function PhotoGrid({
               handlePhotoClick(photo);
             }}
           >
-            {/* Photo — Wasserzeichen-Vorschau bevorzugen, sonst Thumbnail, sonst Original */}
+            {/* Photo — WZ-Vorschau nur wenn Galerie-Toggle an ist, sonst direkt Original */}
             <img
-              src={photo.watermarkUrl || photo.thumbnailUrl || photo.url}
+              src={
+                watermarkEnabled
+                  ? (photo.watermarkUrl || photo.thumbnailUrl || photo.url)
+                  : (photo.thumbnailUrl || photo.url)
+              }
               alt={photo.originalName}
               className="w-full h-full object-cover"
               loading="lazy"

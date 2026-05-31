@@ -14,7 +14,7 @@ type Tab = 'website' | 'galleries';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('website');
+  const [activeTab, setActiveTab] = useState<Tab>('galleries');
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [coverPhotosByGallery, setCoverPhotosByGallery] = useState<Record<string, Photo[]>>({});
   const [loading, setLoading] = useState(true);

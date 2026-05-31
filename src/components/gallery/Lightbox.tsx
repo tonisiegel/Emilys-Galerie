@@ -18,6 +18,7 @@ interface LightboxProps {
   allowMarking: boolean;
   availableMarkers: MarkerColor[];
   visitorId: string;
+  watermarkEnabled: boolean;
   onClose: () => void;
   onNavigate: (photo: Photo) => void;
   onToggleMarker: (photoId: string, color: MarkerColor) => void;
@@ -30,6 +31,7 @@ export function Lightbox({
   allowMarking,
   availableMarkers,
   visitorId,
+  watermarkEnabled,
   onClose,
   onNavigate,
   onToggleMarker,
@@ -130,9 +132,9 @@ export function Lightbox({
           </button>
         )}
 
-        {/* Image — Anzeige nutzt Wasserzeichen-Vorschau wenn vorhanden, Download bleibt Original */}
+        {/* Image — WZ-Vorschau nur wenn Galerie-Toggle an ist, sonst Original; Download bleibt immer Original */}
         <img
-          src={photo.watermarkUrl || photo.url}
+          src={watermarkEnabled ? (photo.watermarkUrl || photo.url) : photo.url}
           alt={photo.originalName}
           className="max-h-full max-w-full object-contain"
           decoding="async"

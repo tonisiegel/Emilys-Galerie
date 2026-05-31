@@ -216,6 +216,7 @@ export function GalleryPage() {
           allowDownload={gallery.allowDownload}
           availableMarkers={gallery.availableMarkers}
           visitorId={visitor?.id || ''}
+          watermarkEnabled={gallery.watermarkEnabled !== false}
           onPhotoClick={setLightboxPhoto}
           onToggleMarker={handleToggleMarker}
         />
@@ -229,6 +230,7 @@ export function GalleryPage() {
             allowMarking={gallery.allowMarking}
             availableMarkers={gallery.availableMarkers}
             visitorId={visitor?.id || ''}
+            watermarkEnabled={gallery.watermarkEnabled !== false}
             onClose={() => setLightboxPhoto(null)}
             onNavigate={setLightboxPhoto}
             onToggleMarker={handleToggleMarker}
