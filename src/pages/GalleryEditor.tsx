@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -176,6 +176,21 @@ export function GalleryEditor() {
   const [_slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
+  // Lock gegen parallele createGallery-Aufrufe.
+  // Wenn onDrop aus irgendeinem Grund mehrfach feuert (Re-Mount, Doppel-Event etc.),
+  // sorgt der gecachte Promise dafür, dass nur EIN createGallery-Call rausgeht
+  // und alle Aufrufer auf das gleiche Ergebnis warten.
+  const galleryIdRef = useRef<string | null>(isNew ? null : id ?? null);
+  const creatingGalleryRef = useRef<Promise<string> | null>(null);
+
+  // Synchronisiere Ref mit URL-Param — wenn beim Aufruf einer existierenden Galerie
+  // die ID ankommt, Ref aktualisieren.
+  useEffect(() => {
+    if (!isNew && id) {
+      galleryIdRef.current = id;
+    }
+  }, [id, isNew]);
+
   // Wasserzeichen-Text aus dem Website-Branding — wird beim Mount geladen
   // und bei jedem Galerie-Upload aufs Bild gerendert. Fallback sorgt dafür,
   // dass Bilder auch geschützt sind, wenn der Branding-Name (noch) leer ist.
@@ -252,12 +267,13 @@ export function GalleryEditor() {
 
     if (imageFiles.length === 0) return;
 
-    // For new galleries, we need to save first to get an ID
-    let galleryId = id;
-    if (isNew || !galleryId) {
-      // Create gallery first
-      try {
-        galleryId = await createGallery({
+    // Galerie-ID besorgen: bestehende nehmen, sonst genau einmal erstellen.
+    // Mehrfache parallele onDrop-Aufrufe warten alle auf den gleichen Promise,
+    // statt jeweils eine eigene Galerie anzulegen.
+    let galleryId = galleryIdRef.current;
+    if (!galleryId) {
+      if (!creatingGalleryRef.current) {
+        creatingGalleryRef.current = createGallery({
           title: title || 'Neue Galerie',
           slug,
           welcomeText,
@@ -269,9 +285,21 @@ export function GalleryEditor() {
           photoCount: 0,
           totalSize: 0,
           isPublic: true,
+        }).then((newId) => {
+          galleryIdRef.current = newId;
+          // URL aktualisieren, damit ein Reload die Galerie wiederfindet.
+          // replaceState benachrichtigt React Router nicht — das ist hier okay,
+          // weil wir die ID über die Ref selbst tracken.
+          window.history.replaceState(null, '', `/admin/gallery/${newId}`);
+          return newId;
+        }).catch((err) => {
+          // Lock freigeben, damit ein erneuter Drop einen neuen Versuch starten kann
+          creatingGalleryRef.current = null;
+          throw err;
         });
-        // Navigate to the new gallery's edit page
-        window.history.replaceState(null, '', `/admin/gallery/${galleryId}`);
+      }
+      try {
+        galleryId = await creatingGalleryRef.current;
       } catch (err) {
         console.error('Failed to create gallery:', err);
         setError('Fehler beim Erstellen der Galerie');
@@ -463,15 +491,18 @@ export function GalleryEditor() {
         isPublic: true,
       };
 
+      // Wenn die Galerie schon existiert (entweder beim Laden vorhanden, oder
+      // beim Foto-Upload via onDrop angelegt), wird sie aktualisiert statt neu
+      // erstellt. galleryIdRef ist die Single Source of Truth für die echte ID
+      // — isNew/id aus useParams sind unzuverlässig, weil replaceState
+      // React Router nicht informiert.
       let galleryId: string;
-
-      if (isNew) {
-        // Create new gallery
-        galleryId = await createGallery(galleryData);
-      } else {
-        // Update existing gallery
-        galleryId = id!;
+      if (galleryIdRef.current) {
+        galleryId = galleryIdRef.current;
         await updateGallery(galleryId, galleryData);
+      } else {
+        galleryId = await createGallery(galleryData);
+        galleryIdRef.current = galleryId;
       }
 
       // Update photo order
