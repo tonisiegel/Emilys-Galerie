@@ -496,7 +496,17 @@ export function GalleryEditor() {
       // erstellt. galleryIdRef ist die Single Source of Truth für die echte ID
       // — isNew/id aus useParams sind unzuverlässig, weil replaceState
       // React Router nicht informiert.
+      // Sonderfall: Wenn der User auf Speichern klickt während onDrop noch eine
+      // Galerie anlegt, warten wir auf den laufenden Promise statt parallel
+      // eine zweite zu erzeugen.
       let galleryId: string;
+      if (!galleryIdRef.current && creatingGalleryRef.current) {
+        try {
+          await creatingGalleryRef.current;
+        } catch {
+          // Wenn der onDrop-Create fehlgeschlagen ist, fallen wir auf eigenen Create durch
+        }
+      }
       if (galleryIdRef.current) {
         galleryId = galleryIdRef.current;
         await updateGallery(galleryId, galleryData);
