@@ -162,7 +162,6 @@ export function GalleryEditor() {
   const [allowMarking, setAllowMarking] = useState(true);
   const [availableMarkers, setAvailableMarkers] = useState<MarkerColor[]>(['green', 'yellow']);
   const [coverPhotoIds, setCoverPhotoIds] = useState<string[]>([]);
-  const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   
   // Photos state
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -236,7 +235,6 @@ export function GalleryEditor() {
         setAllowMarking(gallery.allowMarking);
         setAvailableMarkers(gallery.availableMarkers);
         setCoverPhotoIds(gallery.coverPhotoIds || []);
-        setWatermarkEnabled(gallery.watermarkEnabled !== false); // Default: an
         setSlugManuallyEdited(true);
 
         const photosData = await getGalleryPhotos(gallery.id);
@@ -281,7 +279,6 @@ export function GalleryEditor() {
           allowMarking,
           availableMarkers,
           coverPhotoIds: [],
-          watermarkEnabled,
           photoCount: 0,
           totalSize: 0,
           isPublic: true,
@@ -321,17 +318,16 @@ export function GalleryEditor() {
           }
         );
 
-        // Schritt 2: Wenn Wasserzeichen-Toggle an ist, zusätzlich eine kleine
-        // WZ-Vorschau erzeugen und hochladen. Galerie-Anzeige nutzt diese.
+        // Schritt 2: Zusätzlich eine kleine WZ-Vorschau erzeugen und hochladen —
+        // die Galerie-Anzeige nutzt diese, weil sie deutlich kleiner und schneller
+        // zu laden ist als das Original. Schlägt fehl → nur Original verfügbar.
         let watermarkUrl: string | undefined;
-        if (watermarkEnabled) {
-          try {
-            const preview = await createWatermarkedPreview(file, watermarkText, 1600, 0.80);
-            const wmResult = await uploadPhoto(preview, galleryId!);
-            watermarkUrl = wmResult.url;
-          } catch (wmErr) {
-            console.warn(`Wasserzeichen-Preview für ${file.name} fehlgeschlagen — nur Original verfügbar:`, wmErr);
-          }
+        try {
+          const preview = await createWatermarkedPreview(file, watermarkText, 1600, 0.80);
+          const wmResult = await uploadPhoto(preview, galleryId!);
+          watermarkUrl = wmResult.url;
+        } catch (wmErr) {
+          console.warn(`Wasserzeichen-Preview für ${file.name} fehlgeschlagen — nur Original verfügbar:`, wmErr);
         }
 
         // Save photo metadata to Firestore
@@ -485,7 +481,6 @@ export function GalleryEditor() {
         allowMarking,
         availableMarkers,
         coverPhotoIds,
-        watermarkEnabled,
         photoCount: photos.length,
         totalSize: photos.reduce((sum, p) => sum + (p.size || 0), 0),
         isPublic: true,
@@ -753,34 +748,6 @@ export function GalleryEditor() {
                 </button>
               </label>
 
-              {/* Watermark Toggle */}
-              <label className="flex items-center justify-between cursor-pointer gap-4">
-                <div>
-                  <span className="font-medium text-sage-700">
-                    Wasserzeichen in der Vorschau{' '}
-                    <span className="text-xs text-sage-400 font-normal">(empfohlen)</span>
-                  </span>
-                  <p className="text-sm text-sage-500">
-                    Besucher sehen deine Fotos mit Wasserzeichen — beim Download bekommen deine Kund:innen
-                    trotzdem das Original ohne Wasserzeichen. Wirkt nur für neue Uploads nach dem Speichern.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setWatermarkEnabled(!watermarkEnabled)}
-                  className={`
-                    relative w-12 h-6 rounded-full transition-colors flex-shrink-0
-                    ${watermarkEnabled ? 'bg-sage-500' : 'bg-sand-300'}
-                  `}
-                >
-                  <span
-                    className={`
-                      absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform
-                      ${watermarkEnabled ? 'translate-x-6' : ''}
-                    `}
-                  />
-                </button>
-              </label>
 
               {/* Marker Colors */}
               {allowMarking && (
