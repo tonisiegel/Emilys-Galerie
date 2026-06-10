@@ -17,7 +17,6 @@ interface LightboxProps {
   allowDownload: boolean;
   allowMarking: boolean;
   availableMarkers: MarkerColor[];
-  visitorId: string;
   onClose: () => void;
   onNavigate: (photo: Photo) => void;
   onToggleMarker: (photoId: string, color: MarkerColor) => void;
@@ -29,7 +28,6 @@ export function Lightbox({
   allowDownload,
   allowMarking,
   availableMarkers,
-  visitorId,
   onClose,
   onNavigate,
   onToggleMarker,
@@ -38,7 +36,15 @@ export function Lightbox({
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < photos.length - 1;
 
-  const visitorMarker = photo.markers.find(m => m.visitorId === visitorId)?.color || 'none';
+  // Pro Foto gilt die zuletzt gesetzte Markierung (egal von welchem Besucher).
+  // Wer klickt, überschreibt; gleiche Farbe nochmal entfernt.
+  const displayMarker: MarkerColor = photo.markers.length === 0
+    ? 'none'
+    : [...photo.markers].sort((a, b) => {
+        const aTime = a.markedAt instanceof Date ? a.markedAt.getTime() : 0;
+        const bTime = b.markedAt instanceof Date ? b.markedAt.getTime() : 0;
+        return bTime - aTime;
+      })[0].color;
 
   const goToPrev = useCallback(() => {
     if (hasPrev) {
@@ -154,7 +160,7 @@ export function Lightbox({
         <div className="p-4 flex justify-center">
           <div className="flex items-center gap-1 bg-white/10 rounded-xl p-2">
             {availableMarkers.map((color) => {
-              const isActive = visitorMarker === color;
+              const isActive = displayMarker === color;
               
               return (
                 <button
@@ -188,11 +194,11 @@ export function Lightbox({
               );
             })}
             
-            {visitorMarker !== 'none' && (
+            {displayMarker !== 'none' && (
               <>
                 <div className="w-px h-6 bg-white/20 mx-2" />
                 <button
-                  onClick={() => onToggleMarker(photo.id, visitorMarker)}
+                  onClick={() => onToggleMarker(photo.id, displayMarker)}
                   className="px-3 py-2 text-white/50 text-sm hover:text-white/70 transition-colors"
                 >
                   Entfernen

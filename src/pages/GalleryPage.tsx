@@ -61,51 +61,48 @@ export function GalleryPage() {
     return photos.filter(p => p.markers.some(m => m.color === filterMarker));
   }, [photos, filterMarker]);
 
-  // Toggle marker on photo
+  // Toggle marker on photo — pro Bild gibt es nur eine Markierung. Jede:r Besucher:in
+  // kann sie überschreiben oder entfernen.
   async function handleToggleMarker(photoId: string, color: MarkerColor) {
     if (!visitor) return;
-    
-    setPhotos(prev => prev.map(photo => {
-      if (photo.id !== photoId) return photo;
-      
-      const existingMarkerIndex = photo.markers.findIndex(m => m.visitorId === visitor.id);
-      const existingMarker = existingMarkerIndex >= 0 ? photo.markers[existingMarkerIndex] : null;
-      
-      let newMarkers = [...photo.markers];
-      
-      if (existingMarker?.color === color) {
-        // Remove marker
-        newMarkers.splice(existingMarkerIndex, 1);
-      } else if (existingMarkerIndex >= 0) {
-        // Update existing marker
-        newMarkers[existingMarkerIndex] = {
-          ...existingMarker!,
-          color,
-          markedAt: new Date(),
-        };
-      } else {
-        // Add new marker
-        newMarkers.push({
+
+    const photo = photos.find(p => p.id === photoId);
+    if (!photo) return;
+
+    // Aktuelle Anzeige-Farbe (zuletzt gesetzte Markierung, egal von welchem Besucher)
+    const currentColor: MarkerColor = photo.markers.length === 0
+      ? 'none'
+      : [...photo.markers].sort((a, b) => {
+          const aTime = a.markedAt instanceof Date ? a.markedAt.getTime() : 0;
+          const bTime = b.markedAt instanceof Date ? b.markedAt.getTime() : 0;
+          return bTime - aTime;
+        })[0].color;
+
+    const shouldClear = currentColor === color;
+
+    // Optimistic UI: pro Foto nur eine Markierung (oder gar keine bei Toggle-Off)
+    setPhotos(prev => prev.map(p => {
+      if (p.id !== photoId) return p;
+      if (shouldClear) return { ...p, markers: [] };
+      return {
+        ...p,
+        markers: [{
           visitorId: visitor.id,
           visitorName: visitor.name,
           color,
           markedAt: new Date(),
-        });
-      }
-      
-      return { ...photo, markers: newMarkers };
+        }],
+      };
     }));
-    
-    // Save to Firebase
+
+    // Persistieren: bestehende Marker für dieses Foto entfernen (auch von anderen
+    // Besucher:innen — das ist gewollt, weil pro Foto nur eine Markierung gilt).
+    // Danach ggf. die neue anlegen.
     try {
-      const photo = photos.find(p => p.id === photoId);
-      const existingMarker = photo?.markers.find(m => m.visitorId === visitor.id);
-      
-      if (existingMarker?.color === color) {
-        // Remove marker
-        await removeMarker(photoId, visitor.id);
-      } else {
-        // Add or update marker
+      await Promise.all(
+        photo.markers.map((m) => removeMarker(photoId, m.visitorId))
+      );
+      if (!shouldClear) {
         await addMarker(photoId, visitor.id, visitor.name || null, color);
       }
     } catch (err) {
@@ -215,7 +212,6 @@ export function GalleryPage() {
           allowMarking={gallery.allowMarking}
           allowDownload={gallery.allowDownload}
           availableMarkers={gallery.availableMarkers}
-          visitorId={visitor?.id || ''}
           onPhotoClick={setLightboxPhoto}
           onToggleMarker={handleToggleMarker}
         />
@@ -228,7 +224,6 @@ export function GalleryPage() {
             allowDownload={gallery.allowDownload}
             allowMarking={gallery.allowMarking}
             availableMarkers={gallery.availableMarkers}
-            visitorId={visitor?.id || ''}
             onClose={() => setLightboxPhoto(null)}
             onNavigate={setLightboxPhoto}
             onToggleMarker={handleToggleMarker}

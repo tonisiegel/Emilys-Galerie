@@ -7,7 +7,6 @@ interface PhotoGridProps {
   allowMarking: boolean;
   allowDownload: boolean;
   availableMarkers: MarkerColor[];
-  visitorId: string;
   onPhotoClick: (photo: Photo) => void;
   onToggleMarker: (photoId: string, color: MarkerColor) => void;
 }
@@ -51,7 +50,6 @@ export function PhotoGrid({
   allowMarking,
   allowDownload,
   availableMarkers,
-  visitorId,
   onPhotoClick,
   onToggleMarker,
 }: PhotoGridProps) {
@@ -59,9 +57,16 @@ export function PhotoGrid({
   const [tappedPhoto, setTappedPhoto] = useState<string | null>(null);
   const [markerMenuOpen, setMarkerMenuOpen] = useState<string | null>(null);
 
-  function getVisitorMarker(photo: Photo): MarkerColor {
-    const marker = photo.markers.find(m => m.visitorId === visitorId);
-    return marker?.color || 'none';
+  // Pro Foto gibt es jeweils nur eine sichtbare Markierung — die zuletzt gesetzte
+  // (egal von welchem Besucher). Wer klickt, überschreibt.
+  function getDisplayMarker(photo: Photo): MarkerColor {
+    if (photo.markers.length === 0) return 'none';
+    const sorted = [...photo.markers].sort((a, b) => {
+      const aTime = a.markedAt instanceof Date ? a.markedAt.getTime() : 0;
+      const bTime = b.markedAt instanceof Date ? b.markedAt.getTime() : 0;
+      return bTime - aTime;
+    });
+    return sorted[0].color;
   }
 
   function handleMarkerSelect(photoId: string, color: MarkerColor) {
@@ -95,8 +100,8 @@ export function PhotoGrid({
         const isHovered = hoveredPhoto === photo.id;
         const isTapped = tappedPhoto === photo.id;
         const isMenuOpen = markerMenuOpen === photo.id;
-        const visitorMarker = getVisitorMarker(photo);
-        const hasMarker = visitorMarker !== 'none';
+        const displayMarker = getDisplayMarker(photo);
+        const hasMarker = displayMarker !== 'none';
         
         // Show buttons on hover (desktop) or tap (mobile)
         const showButtons = isHovered || isTapped;
@@ -127,19 +132,19 @@ export function PhotoGrid({
             {/* Bookmark Marker - wenn gesetzt und Menu nicht offen */}
             {hasMarker && !isMenuOpen && (
               <div className="absolute top-0 right-3 pointer-events-none">
-                <svg 
-                  width="32" 
-                  height="44" 
-                  viewBox="0 0 32 44" 
+                <svg
+                  width="32"
+                  height="44"
+                  viewBox="0 0 32 44"
                   className={`drop-shadow-md ${
-                    visitorMarker === 'green' ? 'text-emerald-500' :
-                    visitorMarker === 'yellow' ? 'text-amber-400' :
-                    visitorMarker === 'red' ? 'text-rose-500' :
+                    displayMarker === 'green' ? 'text-emerald-500' :
+                    displayMarker === 'yellow' ? 'text-amber-400' :
+                    displayMarker === 'red' ? 'text-rose-500' :
                     'text-sky-500'
                   }`}
                 >
-                  <path 
-                    d="M0 0 H32 V40 L16 32 L0 40 Z" 
+                  <path
+                    d="M0 0 H32 V40 L16 32 L0 40 Z"
                     fill="currentColor"
                   />
                 </svg>
@@ -202,7 +207,7 @@ export function PhotoGrid({
                     onClick={(e) => e.stopPropagation()}
                   >
                     {availableMarkers.map((color) => {
-                      const isActive = visitorMarker === color;
+                      const isActive = displayMarker === color;
                       return (
                         <button
                           key={color}
@@ -219,17 +224,17 @@ export function PhotoGrid({
                       );
                     })}
                     
-                    {/* X zum Schließen oder Entfernen */}
+                    {/* X zum Schließen oder Markierung entfernen */}
                     <button
                       onClick={() => {
                         if (hasMarker) {
-                          handleMarkerSelect(photo.id, visitorMarker);
+                          handleMarkerSelect(photo.id, displayMarker);
                         } else {
                           setMarkerMenuOpen(null);
                         }
                       }}
                       className="w-7 h-7 rounded-full flex items-center justify-center text-sage-400 hover:text-sage-600 hover:bg-sand-100"
-                      title={hasMarker ? 'Entfernen' : 'Schließen'}
+                      title={hasMarker ? 'Markierung entfernen' : 'Schließen'}
                     >
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M2 2 L10 10 M10 2 L2 10" />
