@@ -142,20 +142,39 @@ export async function getPhoto(id: string): Promise<Photo | null> {
 
 export async function getGalleryPhotos(galleryId: string): Promise<Photo[]> {
   const q = query(
-    collection(db, 'photos'), 
+    collection(db, 'photos'),
     where('galleryId', '==', galleryId),
     orderBy('order', 'asc')
   );
   const querySnapshot = await getDocs(q);
-  
-  return querySnapshot.docs.map(docSnap => {
+
+  const photos = querySnapshot.docs.map((docSnap) => {
     const data = docSnap.data();
-    return {
+    const photo = {
       id: docSnap.id,
       ...data,
-      uploadedAt: (data.uploadedAt as Timestamp)?.toDate() || new Date()
+      uploadedAt: (data.uploadedAt as Timestamp)?.toDate() || new Date(),
     } as Photo;
+    photo.markers = []; // wird gleich aus der markers-Collection befüllt
+    return photo;
   });
+
+  // Marker liegen in einer separaten Collection (Dokumente: `${photoId}_${visitorId}`).
+  // Parallel pro Foto holen und in das markers-Array hängen, damit die Galerie-UI
+  // (und der Filter "Nur grüne anzeigen") die Markierungen kennt.
+  await Promise.all(
+    photos.map(async (photo) => {
+      const markers = await getPhotoMarkers(photo.id);
+      photo.markers = markers.map((m) => ({
+        visitorId: m.visitorId,
+        visitorName: m.visitorName || undefined,
+        color: m.color,
+        markedAt: m.markedAt,
+      }));
+    })
+  );
+
+  return photos;
 }
 
 export async function updatePhoto(id: string, updates: Partial<Photo>): Promise<void> {
